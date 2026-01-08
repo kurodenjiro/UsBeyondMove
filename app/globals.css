@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050505;
+  --foreground: #ededed;
+  --primary: #00F5FF;
+  --secondary: #8A2BE2;
+  --accent: #00F5FF;
+  --muted: #1a1a1a;
+  --border: #333333;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* React Flow Dark Mode Overrides */
+.react-flow__controls-button {
+  background: #000 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  fill: #fff !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #1a1a1a !important;
+}
+
+.react-flow__controls-button svg {
+  fill: #fff !important;
+}
+
+.react-flow__controls {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
