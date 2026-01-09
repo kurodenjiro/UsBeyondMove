@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import ReactFlow, {
@@ -20,7 +20,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { cn } from '@/lib/utils';
-import { Settings, Image as ImageIcon, Trash2, Dices, Move } from 'lucide-react';
+import { Settings, Image as ImageIcon, Trash2, Dices, Move, Sparkles } from 'lucide-react';
 
 // Custom Node Component
 const CustomLayerNode = ({ data }: { data: { label: string, traits: any[], onSettings: () => void } }) => {
@@ -66,6 +66,7 @@ const initialEdges: Edge[] = [
 ];
 
 import { LayerSettingsModal } from './LayerSettingsModal';
+import { SaveCollectionModal } from './SaveCollectionModal';
 
 export const ManageLayers = () => {
     const { user } = usePrivy();
@@ -84,6 +85,79 @@ export const ManageLayers = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isRearranging, setIsRearranging] = useState(false);
     const [selectedTraits, setSelectedTraits] = useState<Record<string, number>>({});
+
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isSavingCollection, setIsSavingCollection] = useState(false);
+
+    // Modal State - Moved to top to avoid Hooks Order Violation
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [previewToSave, setPreviewToSave] = useState<string | null>(null);
+
+    // Canvas Rendering Effect
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Set canvas size
+        canvas.width = 1024;
+        canvas.height = 1024;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Helper to load images
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.crossOrigin = 'anonymous';
+                img.src = src;
+            });
+        };
+
+        // Render character
+        const renderCharacter = async () => {
+            try {
+                // Get layers sorted by depth (parent below child)
+                const layersToRender = nodes
+                    .filter(n => n.data.traits?.some((t: any) => t.imageUrl))
+                    .sort((a, b) => getLayerDepth(a, nodes) - getLayerDepth(b, nodes));
+
+                // Draw each layer in order
+                for (const node of layersToRender) {
+                    const traitIndex = selectedTraits[node.id] || 0;
+                    const trait = node.data.traits?.[traitIndex]?.imageUrl
+                        ? node.data.traits[traitIndex]
+                        : node.data.traits?.find((t: any) => t.imageUrl);
+
+                    if (!trait?.imageUrl) continue;
+
+                    // Load image
+                    const img = await loadImage(trait.imageUrl);
+
+                    // Get position from trait or node data
+                    const pos = trait.position || node.data.position || { x: 0, y: 0, width: 1024, height: 1024 };
+
+                    // Draw at specified position
+                    ctx.drawImage(
+                        img,
+                        pos.x,
+                        pos.y,
+                        pos.width,
+                        pos.height
+                    );
+                }
+            } catch (err) {
+                console.error("Error rendering character:", err);
+            }
+        };
+
+        renderCharacter();
+    }, [nodes, selectedTraits]); // Re-render when nodes or selection changes
 
     // Calculate Layer Depth for proper stacking
     const getLayerDepth = (node: Node, allNodes: Node[]): number => {
@@ -414,6 +488,43 @@ export const ManageLayers = () => {
         );
     }
 
+
+
+    const handleSaveCollectionClick = async () => {
+        if (!canvasRef.current) return;
+        const preview = canvasRef.current.toDataURL('image/png');
+        setPreviewToSave(preview);
+        setIsSaveModalOpen(true);
+    };
+
+    const confirmSaveCollection = async (name: string) => {
+        if (!projectId || !previewToSave) return;
+
+        try {
+            setIsSavingCollection(true);
+
+            const response = await fetch(`/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    status: 'saved',
+                    previewImage: previewToSave
+                })
+            });
+
+            if (!response.ok) throw new Error("Failed to save collection");
+
+            // alert("✅ Collection saved successfully! You can view it in the Collections page.");
+            setIsSaveModalOpen(false);
+        } catch (error) {
+            console.error("Failed to save collection:", error);
+            // alert("❌ Failed to save collection. Please try again.");
+        } finally {
+            setIsSavingCollection(false);
+        }
+    };
+
     return (
         <>
             <div className="w-full h-[600px] border border-white/10 rounded-xl bg-black/40 backdrop-blur-xl relative overflow-hidden">
@@ -475,6 +586,14 @@ export const ManageLayers = () => {
                     </div>
                     <div className="flex items-center gap-4">
                         <button
+                            onClick={handleSaveCollectionClick}
+                            disabled={isSavingCollection}
+                            className="flex items-center gap-2 px-6 py-2 bg-primary text-black rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.3)] hover:shadow-[0_0_25px_rgba(0,245,255,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSavingCollection ? <span className="animate-spin mr-1">⏳</span> : <Sparkles className="w-4 h-4" />}
+                            {isSavingCollection ? 'Saving...' : 'Save Collection'}
+                        </button>
+                        <button
                             onClick={handleRearrange}
                             disabled={isRearranging}
                             className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -521,70 +640,7 @@ export const ManageLayers = () => {
 
                         {/* Canvas for Character Assembly */}
                         <canvas
-                            key={`canvas-${JSON.stringify(selectedTraits)}-${nodes.length}`}
-                            ref={(canvas) => {
-                                if (!canvas) return;
-
-                                const ctx = canvas.getContext('2d');
-                                if (!ctx) return;
-
-                                // Set canvas size
-                                canvas.width = 1024;
-                                canvas.height = 1024;
-
-                                // Clear canvas
-                                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                                // Helper to load images
-                                const loadImage = (src: string): Promise<HTMLImageElement> => {
-                                    return new Promise((resolve, reject) => {
-                                        const img = new Image();
-                                        img.onload = () => resolve(img);
-                                        img.onerror = reject;
-                                        img.crossOrigin = 'anonymous';
-                                        img.src = src;
-                                    });
-                                };
-
-                                // Render character
-                                const renderCharacter = async () => {
-                                    try {
-                                        // Get layers sorted by depth (parent below child)
-                                        const layersToRender = nodes
-                                            .filter(n => n.data.traits?.some((t: any) => t.imageUrl))
-                                            .sort((a, b) => getLayerDepth(a, nodes) - getLayerDepth(b, nodes));
-
-                                        // Draw each layer in order
-                                        for (const node of layersToRender) {
-                                            const traitIndex = selectedTraits[node.id] || 0;
-                                            const trait = node.data.traits?.[traitIndex]?.imageUrl
-                                                ? node.data.traits[traitIndex]
-                                                : node.data.traits?.find((t: any) => t.imageUrl);
-
-                                            if (!trait?.imageUrl) continue;
-
-                                            // Load image
-                                            const img = await loadImage(trait.imageUrl);
-
-                                            // Get position from trait or node data
-                                            const pos = trait.position || node.data.position || { x: 0, y: 0, width: 1024, height: 1024 };
-
-                                            // Draw at specified position
-                                            ctx.drawImage(
-                                                img,
-                                                pos.x,
-                                                pos.y,
-                                                pos.width,
-                                                pos.height
-                                            );
-                                        }
-                                    } catch (err) {
-                                        console.error("Error rendering character:", err);
-                                    }
-                                };
-
-                                renderCharacter();
-                            }}
+                            ref={canvasRef}
                             className="absolute inset-0 w-full h-full"
                             style={{ imageRendering: 'crisp-edges' }}
                         />
@@ -668,6 +724,14 @@ export const ManageLayers = () => {
                 layerData={selectedLayer}
                 onSave={handleSaveSettings}
                 availableLayers={nodes.map(n => n.data.label)}
+            />
+
+            <SaveCollectionModal
+                isOpen={isSaveModalOpen}
+                onClose={() => setIsSaveModalOpen(false)}
+                onSave={confirmSaveCollection}
+                previewImage={previewToSave}
+                isSaving={isSavingCollection}
             />
         </>
     );

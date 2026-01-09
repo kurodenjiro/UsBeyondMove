@@ -55,19 +55,20 @@ export async function POST(req: Request) {
             });
         };
 
-        const getPixel = (x: number, y: number): { r: number, g: number, b: number } => {
+        const getPixel = (x: number, y: number): { r: number, g: number, b: number, a: number } => {
             const idx = (y * info.width + x) * info.channels;
             return {
                 r: data[idx],
                 g: data[idx + 1],
-                b: data[idx + 2]
+                b: data[idx + 2],
+                a: info.channels === 4 ? data[idx + 3] : 255
             };
         };
 
-        // Find all non-green regions
+        // Find all non-background regions
         const visited = new Set<string>();
         const regions: BoundingBox[] = [];
-        const MIN_REGION_SIZE = 5000; // Minimum pixels for a valid asset
+        const MIN_REGION_SIZE = 1000; // Lowered threshold for smaller assets
 
         // Flood fill to find connected regions
         const floodFill = (startX: number, startY: number): BoundingBox | null => {
@@ -75,6 +76,8 @@ export async function POST(req: Request) {
             let minX = startX, maxX = startX;
             let minY = startY, maxY = startY;
             let pixelCount = 0;
+
+            const hasAlpha = info.channels === 4;
 
             while (queue.length > 0) {
                 const [x, y] = queue.shift()!;
@@ -84,7 +87,16 @@ export async function POST(req: Request) {
                 if (x < 0 || x >= info.width || y < 0 || y >= info.height) continue;
 
                 const pixel = getPixel(x, y);
-                if (isGreen(pixel.r, pixel.g, pixel.b)) continue;
+
+                // Define "Background" condition
+                let isBackground = false;
+                if (hasAlpha && pixel.a < 20) {
+                    isBackground = true; // Transparent
+                } else if (isGreen(pixel.r, pixel.g, pixel.b)) {
+                    isBackground = true; // Green check fallback
+                }
+
+                if (isBackground) continue;
 
                 visited.add(key);
                 pixelCount++;
@@ -95,6 +107,7 @@ export async function POST(req: Request) {
                 maxY = Math.max(maxY, y);
 
                 // Add neighbors
+                const step = 2; // Optimization: skip pixels for speed
                 queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
             }
 
@@ -110,12 +123,22 @@ export async function POST(req: Request) {
         };
 
         // Scan for regions
+        const hasAlpha = info.channels === 4;
+
         for (let y = 0; y < info.height; y += 5) {
             for (let x = 0; x < info.width; x += 5) {
                 if (visited.has(`${x},${y}`)) continue;
 
                 const pixel = getPixel(x, y);
-                if (!isGreen(pixel.r, pixel.g, pixel.b)) {
+                let isBackground = false;
+
+                if (hasAlpha && pixel.a < 20) {
+                    isBackground = true;
+                } else if (isGreen(pixel.r, pixel.g, pixel.b)) {
+                    isBackground = true;
+                }
+
+                if (!isBackground) {
                     const region = floodFill(x, y);
                     if (region) {
                         regions.push(region);

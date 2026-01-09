@@ -8,6 +8,7 @@ export async function POST(req: Request) {
         const paymentHash = req.headers.get("X-Payment-Hash");
 
         if (paymentHash) console.log("x402 Image Gen Proof:", paymentHash);
+        console.log("🎨 Image Promt:", prompt);
 
         // Check for Google AI API key
         const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;

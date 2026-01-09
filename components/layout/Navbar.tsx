@@ -26,8 +26,8 @@ export const Navbar = () => {
                     <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
                         <Sparkles className="w-4 h-4" /> Generate
                     </Link>
-                    <Link href="/organize" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
-                        <Layers className="w-4 h-4" /> Organize
+                    <Link href="/collections" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                        <Layers className="w-4 h-4" /> Collections
                     </Link>
                     <Link href="/my-nfts" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
                         <LayoutGrid className="w-4 h-4" /> My NFTs

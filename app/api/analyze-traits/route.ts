@@ -28,7 +28,7 @@ const AnalysisResponseSchema = z.object({
 
 export async function POST(req: Request) {
     try {
-        const { traits } = await req.json();
+        const { traits, knownAttributes } = await req.json();
 
         const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
         if (!apiKey) {
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
         }
 
         console.log(`🔍 Analyzing ${traits.length} traits with Gemini Vision...`);
+        if (knownAttributes) console.log("🎯 Using known attributes map:", JSON.stringify(knownAttributes).substring(0, 100) + "...");
 
         const ai = new GoogleGenAI({ apiKey });
 
@@ -47,13 +48,7 @@ export async function POST(req: Request) {
             }
         }));
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: {
-                role: "user",
-                parts: [
-                    {
-                        text: `You are an expert NFT asset analyzer. Analyze these ${traits.length} character assets extracted from a sprite sheet.
+        let promptText = `You are an expert NFT asset analyzer. Analyze these ${traits.length} character assets extracted from a sprite sheet.
 
 For EACH asset image, provide:
 1. **Name**: Descriptive name (e.g., "Blue Spiky Hair", "Leather Jacket", "Smiling Mouth")
@@ -62,13 +57,30 @@ For EACH asset image, provide:
    - **Background**: Full canvas backgrounds, scenery, environments
    - **Body**: Torso, shoulders, neck (mannequin-like body parts)
    - **Head**: Complete head/face (round/oval shape with facial features)
-   - **Other**: Only if none of the above fit
+   - **Other**: Only if none of the above fit`;
 
+        if (knownAttributes && Array.isArray(knownAttributes) && knownAttributes.length > 0) {
+            promptText += `
+
+CRITICAL INSTRUCTION - ATTRIBUTE MAPPING:
+These assets were generated based on a structured plan. You MUST map each image to one of the following known attributes.
+Do not invent new names if an image plausibly matches one of these.
+KNOWN ATTRIBUTES LIST:
+${knownAttributes.map(a => `- [${a.category}] ${a.name}`).join('\n')}
+
+For each image, check if it closely resembles one of the "KNOWN ATTRIBUTES" for its category.
+If yes, use the exact Name from the list.
+If no match is found, invent a descriptive name.`;
+        } else {
+            promptText += `
 4. **Position**: Where this trait should be positioned on a 1024x1024 canvas
    - **Background**: x=0, y=0, width=1024, height=1024 (full canvas)
    - **Body**: x=256, y=400, width=512, height=624 (centered, lower half, neck at top)
    - **Head**: x=312, y=100, width=400, height=320 (centered, chin at y=420 connects to body neck)
+             `;
+        }
 
+        promptText += `
 5. **Anchor Points**: Which edges have connection points for assembly
 6. **Rarity**: Suggested rarity percentage (1-100)
 
@@ -80,8 +92,13 @@ POSITIONING RULES:
 
 CRITICAL: Analyze the visual content and determine the optimal position for proper character assembly.
 
-Return JSON array with one entry per image in the same order.`
-                    },
+Return JSON array with one entry per image in the same order.`;
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: {
+                role: "user",
+                parts: [
+                    { text: promptText },
                     ...imageParts
                 ]
             },
@@ -262,21 +279,45 @@ Return JSON array with one entry per image in the same order.`
                     const metadata = await sharp(buffer).metadata();
 
                     if (metadata.width && metadata.height) {
+                        // Size Normalization Logic
+                        let finalWidth = metadata.width;
+                        let finalHeight = metadata.height;
+                        let scale = 1;
+
+                        if (enriched.category === 'Head') {
+                            const TARGET_HEAD_WIDTH = 320;
+                            // If significantly off-target, scale it
+                            if (metadata.width < 250 || metadata.width > 380) {
+                                scale = TARGET_HEAD_WIDTH / metadata.width;
+                                finalWidth = Math.round(metadata.width * scale);
+                                finalHeight = Math.round(metadata.height * scale);
+                                console.log(`🔄 Normalizing Head size: ${metadata.width}x${metadata.height} -> ${finalWidth}x${finalHeight} (Scale: ${scale.toFixed(2)})`);
+                            }
+                        } else if (enriched.category === 'Body') {
+                            const TARGET_BODY_WIDTH = 500;
+                            if (metadata.width < 420 || metadata.width > 580) {
+                                scale = TARGET_BODY_WIDTH / metadata.width;
+                                finalWidth = Math.round(metadata.width * scale);
+                                finalHeight = Math.round(metadata.height * scale);
+                                console.log(`🔄 Normalizing Body size: ${metadata.width}x${metadata.height} -> ${finalWidth}x${finalHeight} (Scale: ${scale.toFixed(2)})`);
+                            }
+                        }
+
                         const canvasCenter = 512;
-                        let x = Math.round(canvasCenter - (metadata.width / 2));
+                        let x = Math.round(canvasCenter - (finalWidth / 2));
                         let y = enriched.position?.y || 0;
 
                         // Apply specific alignment rules based on category
                         if (enriched.category === 'Head') {
-                            // Align Head Bottom to Neck Connection (y=420)
-                            y = 420 - metadata.height;
+                            // Align Head Bottom to Neck Connection (y=500) - lowered significantly
+                            y = 500 - finalHeight;
                         } else if (enriched.category === 'Body') {
-                            // Align Body Top to Neck (y=400)
-                            y = 400;
+                            // Align Body Top to Neck (y=370) - raised further
+                            y = 370;
                         }
 
                         // For full-size backgrounds, keep at 0,0
-                        if (enriched.category === 'Background' && metadata.width > 900) {
+                        if (enriched.category === 'Background' && finalWidth > 900) {
                             x = 0;
                             y = 0;
                         }
@@ -285,11 +326,11 @@ Return JSON array with one entry per image in the same order.`
                         enriched.position = {
                             x,
                             y,
-                            width: metadata.width,
-                            height: metadata.height
+                            width: finalWidth,
+                            height: finalHeight
                         };
 
-                        console.log(`📏 Adjusted position for ${enriched.name}: ${x}, ${y} (${metadata.width}x${metadata.height})`);
+                        console.log(`📏 Adjusted position for ${enriched.name}: ${x}, ${y} (${finalWidth}x${finalHeight})`);
                     }
                 }
             } catch (err) {

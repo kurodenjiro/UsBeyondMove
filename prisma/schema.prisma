@@ -130,4 +130,9 @@ model Project {
   upscale      String?  @default("Original")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  name         String?   @default("Untitled Collection")
+  previewImage    String?
+  status          String    @default("draft") // draft, saved, published
+  ipfsHash        String?
+  contractAddress String?
 }

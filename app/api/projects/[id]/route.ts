@@ -29,11 +29,16 @@ export async function PATCH(
     const { id } = await params;
 
     try {
-        const { layers } = await request.json();
+        const { layers, name, status, previewImage } = await request.json();
+
+        const updateData: any = { layers };
+        if (name) updateData.name = name;
+        if (status) updateData.status = status;
+        if (previewImage) updateData.previewImage = previewImage;
 
         const project = await prisma.project.update({
             where: { id },
-            data: { layers },
+            data: updateData,
         });
 
         return NextResponse.json(project);

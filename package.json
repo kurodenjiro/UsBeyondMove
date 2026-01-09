@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.6",
     "@ai-sdk/openai": "^3.0.7",
     "@aptos-labs/ts-sdk": "^5.2.0",
     "@google/genai": "^1.35.0",
