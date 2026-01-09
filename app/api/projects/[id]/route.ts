@@ -22,3 +22,23 @@ export async function GET(
         return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 });
     }
 }
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id } = await params;
+
+    try {
+        const { layers } = await request.json();
+
+        const project = await prisma.project.update({
+            where: { id },
+            data: { layers },
+        });
+
+        return NextResponse.json(project);
+    } catch (error) {
+        console.error('Failed to update project:', error);
+        return NextResponse.json({ error: 'Failed to update project' }, { status: 500 });
+    }
+}

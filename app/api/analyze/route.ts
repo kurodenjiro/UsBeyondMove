@@ -6,7 +6,7 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
     try {
-        const { prompt } = await req.json();
+        const { prompt, aspectRatio = "1:1", upscale = "Original" } = await req.json();
         const paymentHash = req.headers.get("X-Payment-Hash");
 
         // Log payment proof
@@ -15,10 +15,12 @@ export async function POST(req: Request) {
         if (!process.env.VERCEL_GATEWAY_API_KEY) {
             // Mock response if no key
             return new Response(JSON.stringify({
+                aspectRatio,
+                upscale,
                 layers: [
-                    { name: "Background", description: "A dark cyberpunk cityscape with neon lights", rarity: 100 },
-                    { name: "Body", description: "A metallic robot body with exposed gears", rarity: 100 },
-                    { name: "Head", description: "A futuristic helmet with glowing visor", rarity: 100 }
+                    { name: "Background", description: "A dark cyberpunk cityscape with neon lights", rarity: 100, parentLayer: "", position: { x: 100, y: 100 }, traits: [] },
+                    { name: "Body", description: "A metallic robot body with exposed gears", rarity: 100, parentLayer: "Background", position: { x: 300, y: 100 }, traits: [] },
+                    { name: "Head", description: "A futuristic helmet with glowing visor", rarity: 100, parentLayer: "Body", position: { x: 500, y: 100 }, traits: [] }
                 ]
             }), { status: 200 });
         }
@@ -29,6 +31,8 @@ export async function POST(req: Request) {
         const { object } = await generateObject({
             model: model,
             schema: z.object({
+                aspectRatio: z.string().describe('Image aspect ratio setting'),
+                upscale: z.string().describe('Upscale setting'),
                 layers: z.array(z.object({
                     name: z.string().describe('Name of the layer (e.g. Background, Body, Hat)'),
                     description: z.string().describe('General description for this layer category'),
@@ -40,13 +44,34 @@ export async function POST(req: Request) {
                     }),
                     traits: z.array(z.object({
                         name: z.string().describe('Specific trait name (e.g. Red Hair, Blue Hair)'),
-                        description: z.string().describe('Visual prompt for avoiding ambiguity'),
+                        description: z.string().describe('Brief visual description'),
+                        aiPrompt: z.string().describe('Detailed AI generation prompt with exact canvas positioning and 2D game asset specifications'),
                         rarity: z.number().describe('Rarity % (Traits in this layer MUST sum to 100)')
                     })).min(1)
                 })),
             }),
-            system: 'You are an expert NFT collection architect. Break down the user concept into composition layers with a clear hierarchical structure. IMPORTANT: Create parent-child relationships where appropriate. For example, "Background" is typically the root layer (parentLayer: ""), then "Body" is a child of "Background" (parentLayer: "Background"), and "Head", "Arms", "Legs" are children of "Body" (parentLayer: "Body"). Most layers should have a parent - only the first foundational layer (usually Background) should have an empty parentLayer. Each layer has specific traits. Ensure traits for a layer sum to exactly 100% rarity. Assign logical X/Y positions for flowchart references where parent layers are positioned to the left of their children.',
-            prompt: `Analyze this concept and create a hierarchical layer structure with parent-child relationships: "${prompt}"`,
+            system: `You are an expert NFT collection architect specializing in 2D game assets.
+
+CRITICAL HIERARCHY RULE:
+- ONLY the first/root layer (typically "Background") should have parentLayer: ""
+- ALL other layers MUST have a parent specified
+- Example: Background (parentLayer:""), Body (parentLayer:"Background"), Head (parentLayer:"Body")
+
+AI PROMPT FORMAT (VERY IMPORTANT):
+For each trait, generate a detailed "aiPrompt" following this exact format:
+"A minimalist 2D flat vector game asset of [trait name] for the [layer name] layer. The [asset description] is positioned at x=[x coordinate], y=[y coordinate] on a 1024x1024 white canvas. Design features [specific visual details], perfectly symmetrical, clean edges, isolated on a solid white background. No shadows, no gradients, 2D game UI style."
+
+Example:
+"A minimalist 2D flat vector game asset of panda eye patches for the Eyes layer. The pair of eyes is positioned at x=512, y=400 on a 1024x1024 white canvas. Design features two high-contrast black ovals with white pupils, perfectly symmetrical, clean edges, isolated on a solid white background. No shadows, no gradients, 2D game UI style."
+
+REQUIREMENTS:
+- Traits must sum to 100% rarity per layer
+- Use exact x,y coordinates from the layer's position
+- Always specify "1024x1024 white canvas"
+- Always include "2D flat vector game asset"
+- Always include "No shadows, no gradients, 2D game UI style"
+- Return aspectRatio: "${aspectRatio}" and upscale: "${upscale}"`,
+            prompt: `Analyze: "${prompt}"`,
         });
 
         console.log("Analysis Output:", JSON.stringify(object, null, 2));

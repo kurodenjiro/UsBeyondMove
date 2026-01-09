@@ -126,6 +126,8 @@ model Project {
   ownerAddress String
   prompt       String
   layers       Json
+  aspectRatio  String?  @default("1:1")
+  upscale      String?  @default("Original")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { X, Image as ImageIcon, Scaling, Ratio, GripHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,6 +8,10 @@ import { motion, AnimatePresence } from "framer-motion";
 interface AdvancedSettingsProps {
     isOpen: boolean;
     onClose: () => void;
+    selectedRatio: string;
+    setSelectedRatio: (ratio: string) => void;
+    selectedUpscale: string;
+    setSelectedUpscale: (upscale: string) => void;
 }
 
 const RATIOS = [
@@ -17,7 +22,8 @@ const RATIOS = [
 
 const UPSCALES = ["Original", "1X", "2X"];
 
-export const AdvancedSettings = ({ isOpen, onClose }: AdvancedSettingsProps) => {
+export const AdvancedSettings = ({ isOpen, onClose, selectedRatio, setSelectedRatio, selectedUpscale, setSelectedUpscale }: AdvancedSettingsProps) => {
+
     if (!isOpen) return null;
 
     return (
@@ -52,14 +58,14 @@ export const AdvancedSettings = ({ isOpen, onClose }: AdvancedSettingsProps) => 
                             </label>
                             <div className="grid grid-cols-3 gap-3">
                                 {RATIOS.map((r) => (
-                                    <div key={r.id} className="group cursor-pointer">
+                                    <div key={r.id} className="group cursor-pointer" onClick={() => setSelectedRatio(r.id)}>
                                         <div className={cn(
                                             "flex items-center justify-center py-3 rounded-lg border text-xs font-bold transition-all",
-                                            r.id === "1:1"
+                                            r.id === selectedRatio
                                                 ? "bg-white/10 border-white/20 text-white"
                                                 : "bg-black/40 border-white/5 text-muted-foreground hover:bg-white/5"
                                         )}>
-                                            {r.label === "AR 1:1" && <span className="mr-1 text-primary">✓</span>}
+                                            {r.id === selectedRatio && <span className="mr-1 text-primary">✓</span>}
                                             {r.label}
                                         </div>
                                         <div className="text-center mt-2">
@@ -80,22 +86,17 @@ export const AdvancedSettings = ({ isOpen, onClose }: AdvancedSettingsProps) => 
                                 {UPSCALES.map((u) => (
                                     <div key={u} className={cn(
                                         "flex items-center justify-center py-3 rounded-lg border text-xs font-bold transition-all cursor-pointer",
-                                        u === "Original"
+                                        u === selectedUpscale
                                             ? "bg-white/10 border-white/20 text-white"
                                             : "bg-black/40 border-white/5 text-muted-foreground hover:bg-white/5"
-                                    )}>
-                                        {u === "Original" && <span className="mr-1 text-primary">✓</span>}
+                                    )}
+                                        onClick={() => setSelectedUpscale(u)}
+                                    >
+                                        {u === selectedUpscale && <span className="mr-1 text-primary">✓</span>}
                                         {u}
                                     </div>
                                 ))}
                             </div>
-                        </div>
-
-                        {/* Add Traits Button Mock */}
-                        <div className="pt-4 border-t border-white/10">
-                            <button className="w-full py-3 rounded-lg border border-white/10 hover:bg-white/5 transition-colors text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center justify-center gap-2">
-                                <GripHorizontal className="w-4 h-4" /> + Add Traits
-                            </button>
                         </div>
                     </div>
                 </motion.div>

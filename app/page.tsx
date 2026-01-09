@@ -18,6 +18,8 @@ export default function Home() {
   const [isStyleOpen, setIsStyleOpen] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("none");
+  const [selectedRatio, setSelectedRatio] = useState("1:1");
+  const [selectedUpscale, setSelectedUpscale] = useState("Original");
   const [supply, setSupply] = useState(8);
   const { mintCollection } = useX402();
   const { user } = usePrivy();
@@ -46,7 +48,11 @@ export default function Home() {
           'Content-Type': 'application/json',
           'X-Payment-Hash': paymentHeader // Send the x402 proof header
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({
+          prompt,
+          aspectRatio: selectedRatio,
+          upscale: selectedUpscale
+        })
       });
       const analysisData = await analyzeResponse.json();
       console.log("--- ANALYSIS RESULT ---");
@@ -64,7 +70,9 @@ export default function Home() {
         body: JSON.stringify({
           prompt,
           layers: analysisData.layers,
-          ownerAddress: user?.wallet?.address
+          ownerAddress: user?.wallet?.address,
+          aspectRatio: selectedRatio,
+          upscale: selectedUpscale
         })
       });
 
@@ -148,12 +156,10 @@ export default function Home() {
             <button
               onClick={() => {
                 const prompts = [
-                  "A collection NFT of cyberpunk street samurais with neon katanas and rain-slicked armor",
-                  "A collection NFT of cyberpunk androids with transparent casings and glowing internal circuits",
-                  "A collection NFT of cyberpunk bio-mecha animals with chrome plating and laser eyes",
-                  "A collection NFT of cyberpunk glitch art portraits featuring holographic deities",
-                  "A collection NFT of cyberpunk mechs patrolling a neon-lit futuristic Tokyo",
-                  "A collection NFT of cyberpunk virtual avatars wearing digital streetwear and AR visors"
+                  "A collection NFT of cyberpunk PFP NFT",
+                  "A collection NFT of anime PFP NFT",
+                  "A collection NFT of Rick and Morty PFP NFT",
+                  "A collection NFT of Ghibi NFT",
                 ];
                 setPrompt(prompts[Math.floor(Math.random() * prompts.length)]);
               }}
@@ -191,7 +197,7 @@ export default function Home() {
               <input
                 type="number"
                 min="1"
-                max="10000"
+                max="8"
                 value={supply}
                 onChange={(e) => setSupply(parseInt(e.target.value) || 1)}
                 className="w-16 bg-transparent border-none focus:ring-0 text-sm font-bold text-primary p-0 outline-none"
@@ -219,6 +225,10 @@ export default function Home() {
       <AdvancedSettings
         isOpen={isAdvancedOpen}
         onClose={() => setIsAdvancedOpen(false)}
+        selectedRatio={selectedRatio}
+        setSelectedRatio={setSelectedRatio}
+        selectedUpscale={selectedUpscale}
+        setSelectedUpscale={setSelectedUpscale}
       />
     </div>
   );

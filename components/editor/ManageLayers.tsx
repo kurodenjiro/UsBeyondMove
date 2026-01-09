@@ -87,35 +87,62 @@ export const ManageLayers = () => {
         setIsModalOpen(true);
     };
 
-    const handleSaveSettings = (updatedData: any) => {
-        // Update the node data
-        setNodes((nds) => nds.map(node => {
-            if (node.id === selectedNodeId) {
-                return {
-                    ...node,
-                    position: updatedData.position || node.position, // Update position if provided
-                    data: {
-                        ...node.data,
-                        label: updatedData.label,
-                        description: updatedData.description,
-                        position: updatedData.position, // Store in data as well for DB sync
-                        rarity: updatedData.rarity,
-                        traits: updatedData.traits,
-                        parentLayer: updatedData.parentLayer // Save parent layer
-                    }
-                };
-            }
-            return node;
-        }));
+    const handleSaveProject = async (currentNodes: Node[], currentEdges: Edge[]) => {
+        if (!projectId) return;
 
-        // Regenerate edges based on updated parent relationships
-        setNodes((currentNodes) => {
+        try {
+            const layers = currentNodes.map(node => ({
+                name: node.data.label,
+                traits: node.data.traits,
+                description: node.data.description,
+                parentLayer: node.data.parentLayer,
+                rarity: node.data.rarity,
+                position: node.position
+            }));
+
+            const response = await fetch(`/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ layers })
+            });
+
+            if (!response.ok) throw new Error("Failed to save project");
+            console.log("✅ Project saved successfully");
+        } catch (error) {
+            console.error("❌ Failed to save project:", error);
+        }
+    };
+
+    const handleSaveSettings = (updatedData: any) => {
+        // Update the node data and edges in a single pass if possible, or trigger sequentially correctly
+        setNodes((nds) => {
+            const newNodes = nds.map(node => {
+                if (node.id === selectedNodeId) {
+                    return {
+                        ...node,
+                        position: updatedData.position || node.position,
+                        data: {
+                            ...node.data,
+                            label: updatedData.label,
+                            description: updatedData.description,
+                            position: updatedData.position,
+                            rarity: updatedData.rarity,
+                            traits: updatedData.traits,
+                            parentLayer: updatedData.parentLayer
+                        }
+                    };
+                }
+                return node;
+            });
+
+            // Calculate new edges based on the updated nodes
             const newEdges: Edge[] = [];
-            currentNodes.forEach((node) => {
-                const nodeData = node.id === selectedNodeId ? updatedData : node.data;
+            newNodes.forEach((node) => {
+                const nodeData = node.data;
                 if (nodeData.parentLayer && nodeData.parentLayer !== '') {
-                    // Find the parent node by label
-                    const parentNode = currentNodes.find(n => n.data.label === nodeData.parentLayer);
+                    const parentNode = newNodes.find(n => n.data.label === nodeData.parentLayer);
                     if (parentNode) {
                         newEdges.push({
                             id: `e-${parentNode.id}-${node.id}`,
@@ -128,11 +155,16 @@ export const ManageLayers = () => {
                     }
                 }
             });
+
             setEdges(newEdges);
-            return currentNodes;
+
+            // Auto-save to database
+            handleSaveProject(newNodes, newEdges);
+
+            return newNodes;
         });
 
-        setIsModalOpen(false); // Close modal after saving
+        setIsModalOpen(false);
     };
 
     const onNodesChange = useCallback(
@@ -230,48 +262,73 @@ export const ManageLayers = () => {
     }
 
     return (
-        <div className="w-full h-[600px] border border-white/10 rounded-xl bg-black/40 backdrop-blur-xl relative overflow-hidden">
-            <div className="absolute top-4 left-4 z-10 flex gap-2">
-                <div className="bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-md border border-white/10 text-xs font-mono text-muted-foreground">
-                    Canvas Mode: Edit
+        <div className="space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
+                        Asset Organizer
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                        Visualize and manage your NFT layer dependencies.
+                    </p>
+                </div>
+                <div className="flex gap-4">
+                    <button className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors text-sm font-medium border border-white/5">
+                        Import Assets
+                    </button>
+                    <button
+                        onClick={() => handleSaveProject(nodes, edges)}
+                        className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-black transition-colors text-sm font-bold shadow-[0_0_15px_rgba(0,245,255,0.3)]"
+                    >
+                        Save Layout
+                    </button>
                 </div>
             </div>
 
-            <ReactFlow
-                nodes={nodes.map(n => ({
-                    ...n,
-                    data: {
-                        ...n.data,
-                        onSettings: () => handleSettingsClick(n.id, n.position, n.data)
-                    }
-                }))}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                fitView
-                className="bg-grid-white/[0.02]"
-            >
-                <Background color="#1a1a1a" gap={20} size={1} />
-                <Controls className="react-flow__controls-custom" style={{
-                    backgroundColor: '#000',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px',
-                    padding: '4px',
-                    fill: '#fff',
-                    color: '#fff'
-                }} />
-                <MiniMap
-                    nodeColor="#00F5FF"
-                    maskColor="rgba(0, 0, 0, 0.7)"
-                    style={{
+            <div className="w-full h-[600px] border border-white/10 rounded-xl bg-black/40 backdrop-blur-xl relative overflow-hidden">
+                <div className="absolute top-4 left-4 z-10 flex gap-2">
+                    <div className="bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-md border border-white/10 text-xs font-mono text-muted-foreground">
+                        Canvas Mode: Edit
+                    </div>
+                </div>
+
+                <ReactFlow
+                    nodes={nodes.map(n => ({
+                        ...n,
+                        data: {
+                            ...n.data,
+                            onSettings: () => handleSettingsClick(n.id, n.position, n.data)
+                        }
+                    }))}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={onConnect}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    className="bg-grid-white/[0.02]"
+                >
+                    <Background color="#1a1a1a" gap={20} size={1} />
+                    <Controls className="react-flow__controls-custom" style={{
                         backgroundColor: '#000',
                         border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px'
-                    }}
-                />
-            </ReactFlow>
+                        borderRadius: '8px',
+                        padding: '4px',
+                        fill: '#fff',
+                        color: '#fff'
+                    }} />
+                    <MiniMap
+                        nodeColor="#00F5FF"
+                        maskColor="rgba(0, 0, 0, 0.7)"
+                        style={{
+                            backgroundColor: '#000',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '8px'
+                        }}
+                    />
+                </ReactFlow>
+
+            </div>
 
             <LayerSettingsModal
                 isOpen={isModalOpen}

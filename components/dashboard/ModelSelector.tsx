@@ -19,13 +19,13 @@ export const ModelSelector = () => {
         <div className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/10 border border-secondary/20 hover:bg-secondary/20 hover:border-secondary/40 transition-all text-xs font-medium text-secondary min-w-[140px] justify-between group"
+                className="bg-black/40 backdrop-blur border border-white/5 rounded-full px-6 py-3 flex items-center gap-3 hover:border-primary/50 transition-colors cursor-pointer group"
             >
                 <div className="flex items-center gap-2">
-                    <selectedModel.icon className="w-3 h-3" />
-                    <span>{selectedModel.name}</span>
+                    <selectedModel.icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium">{selectedModel.name}</span>
                 </div>
-                <ChevronDown className={cn("w-3 h-3 transition-transform duration-300", isOpen ? "rotate-180" : "")} />
+                <ChevronDown className={cn("w-4 h-4 text-muted-foreground group-hover:text-primary transition-all duration-300", isOpen ? "rotate-180" : "")} />
             </button>
 
             <AnimatePresence>

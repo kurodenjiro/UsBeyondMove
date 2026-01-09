@@ -1,4 +1,4 @@
-import { openai } from '@ai-sdk/openai';
+import { GoogleGenAI } from "@google/genai";
 
 export const maxDuration = 60;
 
@@ -9,42 +9,61 @@ export async function POST(req: Request) {
 
         if (paymentHash) console.log("x402 Image Gen Proof:", paymentHash);
 
-        if (!process.env.VERCEL_GATEWAY_API_KEY) {
-            // Mock image
+        // Check for Google AI API key
+        const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            console.error("❌ No Google AI API key found. Set GOOGLE_AI_API_KEY in .env.local");
             return new Response(JSON.stringify({
-                url: "https://via.placeholder.com/1024x1024.png?text=Mock+AI+Image"
-            }), { status: 200 });
+                error: "No API key configured"
+            }), { status: 500 });
         }
 
-        // Use OpenAI API directly for image generation
-        const response = await fetch("https://api.openai.com/v1/images/generations", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${process.env.VERCEL_GATEWAY_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: "dall-e-3",
-                prompt: `${prompt}. Isolated asset on transparent background, high quality 2D game asset, clean edges.`,
-                n: 1,
-                size: "1024x1024"
-            })
+        console.log("✅ Generating image with Gemini 2.5 Flash...");
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-image",
+            contents: prompt,
         });
 
-        const data = await response.json();
+        // Extract image data from response (following official example)
+        let imageData: string | null = null;
 
-        if (data.error) {
-            throw new Error(data.error.message || JSON.stringify(data.error));
+        for (const part of response.candidates[0].content.parts) {
+            if (part.text) {
+                console.log("Text response:", part.text);
+            }
+            if (part.inlineData) {
+                imageData = part.inlineData.data;
+                console.log("✅ Found image data in response");
+            }
         }
 
-        // OpenAI returns `data` array with url
-        const imageUrl = data.data?.[0]?.url;
-        if (!imageUrl) throw new Error("No image URL returned from OpenAI");
+        // Check if we got image data
+        if (!imageData) {
+            throw new Error("No image data returned from Gemini");
+        }
 
+        // Convert to base64 data URL
+        const imageUrl = `data:image/png;base64,${imageData}`;
+
+        console.log("✅ Image generated successfully with Gemini");
         return new Response(JSON.stringify({ url: imageUrl }), { status: 200 });
 
     } catch (error: any) {
-        console.error("Image Generation failed:", error);
-        return new Response(JSON.stringify({ error: "Failed to generate image" }), { status: 500 });
+        console.error("❌ Image Generation failed:", error);
+
+        // Check if it's a quota error
+        if (error.status === 429 || error.message?.includes("quota")) {
+            return new Response(JSON.stringify({
+                error: "Gemini API quota exceeded. Please wait or upgrade your plan."
+            }), { status: 429 });
+        }
+
+        return new Response(JSON.stringify({
+            error: error.message || "Failed to generate image"
+        }), { status: 500 });
     }
 }

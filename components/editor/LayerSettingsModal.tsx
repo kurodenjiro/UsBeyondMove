@@ -46,15 +46,19 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
     };
 
     const updateTraitRarity = (index: number, newRarity: number) => {
-        const newTraits = [...traits];
-        newTraits[index] = { ...newTraits[index], rarity: newRarity };
-        setTraits(newTraits);
+        setTraits(prev => {
+            const newTraits = [...prev];
+            newTraits[index] = { ...newTraits[index], rarity: newRarity };
+            return newTraits;
+        });
     };
 
     const updateTraitField = (index: number, field: string, value: any) => {
-        const newTraits = [...traits];
-        newTraits[index] = { ...newTraits[index], [field]: value };
-        setTraits(newTraits);
+        setTraits(prev => {
+            const newTraits = [...prev];
+            newTraits[index] = { ...newTraits[index], [field]: value };
+            return newTraits;
+        });
     };
 
     if (!isOpen) return null;
@@ -200,8 +204,7 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                 </button>
                             </div>
 
-                            {/* Traits Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {traits.map((trait, index) => (
                                     <div key={index} className="flex flex-col gap-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-colors group">
 
@@ -233,7 +236,15 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                                     }
                                                 }}
                                             />
-                                            <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-white/5 to-white/10 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden transition-all group-hover/image:border-primary/50 group-hover/image:shadow-[0_0_30px_rgba(0,245,255,0.3)]">
+                                            <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-white/5 to-white/10 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden transition-all group-hover/image:border-primary/50 group-hover/image:shadow-[0_0_30px_rgba(0,245,255,0.3)] relative">
+                                                {trait.isGenerating && (
+                                                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                                                            <span className="text-xs font-medium text-primary">Generating...</span>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 {trait.imageUrl ? (
                                                     <img src={trait.imageUrl} alt={trait.name} className="w-full h-full object-cover" />
                                                 ) : (
@@ -257,21 +268,30 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                                             updateTraitField(index, 'isGenerating', true);
 
                                                             try {
+                                                                console.log('🎨 Generating image for trait:', trait.name);
+                                                                console.log('📝 Using prompt:', trait.aiPrompt || trait.description || trait.name);
+
                                                                 const response = await fetch('/api/generate-image', {
                                                                     method: 'POST',
                                                                     headers: { 'Content-Type': 'application/json' },
                                                                     body: JSON.stringify({
-                                                                        prompt: trait.description || trait.name,
+                                                                        prompt: trait.aiPrompt || trait.description || trait.name,
                                                                         style: 'none'
                                                                     })
                                                                 });
 
                                                                 const data = await response.json();
+                                                                console.log('✅ Image generation response:', data);
+                                                                console.log('📏 Data URL length:', data.url?.length || 0);
+
                                                                 if (data.url) {
+                                                                    console.log('🖼️ Setting imageUrl (first 100 chars):', data.url.substring(0, 100));
                                                                     updateTraitField(index, 'imageUrl', data.url);
+                                                                } else if (data.error) {
+                                                                    console.error('❌ Image generation error:', data.error);
                                                                 }
                                                             } catch (error) {
-                                                                console.error('Failed to generate image:', error);
+                                                                console.error('❌ Failed to generate image:', error);
                                                             } finally {
                                                                 updateTraitField(index, 'isGenerating', false);
                                                             }
