@@ -275,7 +275,7 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                                                     method: 'POST',
                                                                     headers: { 'Content-Type': 'application/json' },
                                                                     body: JSON.stringify({
-                                                                        prompt: trait.aiPrompt || trait.description || trait.name,
+                                                                        prompt: `${trait.aiPrompt || trait.description || trait.name}, 2D game asset, minimalist flat vector, isolated on pure white background, high quality, digital art`,
                                                                         style: 'none'
                                                                     })
                                                                 });

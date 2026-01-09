@@ -81,6 +81,9 @@ export const ManageLayers = () => {
     const [selectedLayer, setSelectedLayer] = useState<any>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
+    // Preview Selection State (Node ID -> Trait Index)
+    const [selectedTraits, setSelectedTraits] = useState<Record<string, number>>({});
+
     const handleSettingsClick = (nodeId: string, nodePosition: { x: number, y: number }, layerData: any) => {
         setSelectedNodeId(nodeId);
         setSelectedLayer({ ...layerData, position: nodePosition }); // Include node position
@@ -250,6 +253,12 @@ export const ManageLayers = () => {
         fetchProject();
     }, [projectId, user?.wallet?.address]);
 
+    // Combinations calculation
+    const totalCombinations = nodes.reduce((acc, node) => {
+        const traitCount = node.data.traits?.filter((t: any) => t.name.trim() !== "").length || 0;
+        return acc * (traitCount || 1);
+    }, 1);
+
     if (isLoading) {
         return (
             <div className="w-full h-[600px] border border-white/10 rounded-xl bg-black/40 backdrop-blur-xl flex items-center justify-center">
@@ -262,29 +271,7 @@ export const ManageLayers = () => {
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
-                        Asset Organizer
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Visualize and manage your NFT layer dependencies.
-                    </p>
-                </div>
-                <div className="flex gap-4">
-                    <button className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors text-sm font-medium border border-white/5">
-                        Import Assets
-                    </button>
-                    <button
-                        onClick={() => handleSaveProject(nodes, edges)}
-                        className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-black transition-colors text-sm font-bold shadow-[0_0_15px_rgba(0,245,255,0.3)]"
-                    >
-                        Save Layout
-                    </button>
-                </div>
-            </div>
-
+        <>
             <div className="w-full h-[600px] border border-white/10 rounded-xl bg-black/40 backdrop-blur-xl relative overflow-hidden">
                 <div className="absolute top-4 left-4 z-10 flex gap-2">
                     <div className="bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-md border border-white/10 text-xs font-mono text-muted-foreground">
@@ -330,6 +317,128 @@ export const ManageLayers = () => {
 
             </div>
 
+            {/* Combined Preview Section */}
+            <div className="mt-8 p-6 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <ImageIcon className="w-5 h-5 text-primary" />
+                            Live Composite Preview
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono uppercase tracking-widest">
+                            {totalCombinations.toLocaleString()} Possible Combinations
+                        </p>
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                        {nodes.filter(n => n.data.traits?.some((t: any) => t.imageUrl)).length} Layers in Mix
+                    </span>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-10 items-start">
+                    {/* Big Picture */}
+                    <div className="relative w-80 h-80 bg-white rounded-2xl border-2 border-white/10 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] group">
+                        <div className="absolute inset-0 bg-grid-black/[0.02]" />
+
+                        {/* Composite Layers - Sorted by Canvas Position Y (Top-down) */}
+                        {nodes
+                            .filter(n => n.data.traits?.some((t: any) => t.imageUrl))
+                            .sort((a, b) => a.position.y - b.position.y)
+                            .map((node, i) => {
+                                const traitIndex = selectedTraits[node.id] || 0;
+                                const trait = node.data.traits?.[traitIndex]?.imageUrl
+                                    ? node.data.traits[traitIndex]
+                                    : node.data.traits?.find((t: any) => t.imageUrl);
+
+                                if (!trait?.imageUrl) return null;
+
+                                return (
+                                    <img
+                                        key={node.id}
+                                        src={trait.imageUrl}
+                                        alt={node.data.label}
+                                        className="absolute w-full h-full object-contain transition-all duration-500 ease-in-out mix-blend-multiply"
+                                        style={{
+                                            zIndex: i + 10,
+                                            left: `${node.data.position?.x || 0}px`,
+                                            top: `${node.data.position?.y || 0}px`,
+                                        }}
+                                    />
+                                );
+                            })}
+
+                        {nodes.every(n => !n.data.traits?.some((t: any) => t.imageUrl)) && (
+                            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm font-mono px-8 text-center bg-black/40">
+                                <div>
+                                    <p>Ready to combine</p>
+                                    <p className="text-[10px] mt-2 opacity-50">Generate images in the layers above</p>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Composite Order</span>
+                            <div className="flex gap-1 mt-1">
+                                {nodes.sort((a, b) => a.position.y - b.position.y).map((n, i) => (
+                                    <div key={n.id} className="w-2 h-2 rounded-full bg-primary" style={{ opacity: (i + 1) / nodes.length }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Layer & Trait Selector */}
+                    <div className="flex-1 space-y-4">
+                        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em] mb-4">Mixing Panel</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {nodes.map((node) => {
+                                const currentTraitIndex = selectedTraits[node.id] || 0;
+                                const hasImages = node.data.traits?.some((t: any) => t.imageUrl);
+
+                                return (
+                                    <div key={node.id} className="group p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all flex flex-col gap-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] uppercase font-bold text-white tracking-widest group-hover:text-primary transition-colors">
+                                                {node.data.label}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">
+                                                {node.data.traits?.filter((t: any) => t.imageUrl).length || 0} Assets
+                                            </span>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2">
+                                            {node.data.traits?.map((trait: any, idx: number) => (
+                                                <button
+                                                    key={idx}
+                                                    disabled={!trait.imageUrl}
+                                                    onClick={() => setSelectedTraits(prev => ({ ...prev, [node.id]: idx }))}
+                                                    className={cn(
+                                                        "relative w-12 h-12 rounded-lg border-2 transition-all overflow-hidden",
+                                                        !trait.imageUrl ? "border-transparent opacity-20 cursor-not-allowed" :
+                                                            currentTraitIndex === idx ? "border-primary shadow-[0_0_10px_rgba(0,245,255,0.3)] scale-105" :
+                                                                "border-white/10 hover:border-white/30"
+                                                    )}
+                                                >
+                                                    {trait.imageUrl && (
+                                                        <img src={trait.imageUrl} className="w-full h-full object-cover" />
+                                                    )}
+                                                    {currentTraitIndex === idx && trait.imageUrl && (
+                                                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                            {!hasImages && (
+                                                <div className="text-[10px] text-white/20 font-mono py-2">No assets generated</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <LayerSettingsModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
@@ -337,6 +446,6 @@ export const ManageLayers = () => {
                 onSave={handleSaveSettings}
                 availableLayers={nodes.map(n => n.data.label)}
             />
-        </div>
+        </>
     );
 };
