@@ -242,10 +242,61 @@ Return JSON array with one entry per image in the same order.`
             console.log(`  ${i + 1}. ${trait.name} (${trait.category}) - Rarity: ${trait.rarity}%`);
         });
 
-        // Merge analysis with original trait data
-        const enrichedTraits = traits.map((trait: any, index: number) => ({
-            ...trait,
-            ...validated.traits[index]
+        // Merge analysis with original trait data and apply dynamic positioning
+        const enrichedTraits = await Promise.all(traits.map(async (trait: any, index: number) => {
+            const enriched = {
+                ...trait,
+                ...validated.traits[index]
+            };
+
+            // Calculate dynamic position based on actual image dimensions
+            // This ensures perfect alignment regardless of cropping
+            try {
+                if (trait.imageUrl) {
+                    const base64Data = trait.imageUrl.replace(/^data:image\/\w+;base64,/, '');
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    // dynamically import sharp to avoid build issues if it's treated as client component (though this is API route)
+                    // actually simpler to just import at top, but let's stick to patterns if needed. 
+                    // No, import at top is fine.
+                    const sharp = require('sharp');
+                    const metadata = await sharp(buffer).metadata();
+
+                    if (metadata.width && metadata.height) {
+                        const canvasCenter = 512;
+                        let x = Math.round(canvasCenter - (metadata.width / 2));
+                        let y = enriched.position?.y || 0;
+
+                        // Apply specific alignment rules based on category
+                        if (enriched.category === 'Head') {
+                            // Align Head Bottom to Neck Connection (y=420)
+                            y = 420 - metadata.height;
+                        } else if (enriched.category === 'Body') {
+                            // Align Body Top to Neck (y=400)
+                            y = 400;
+                        }
+
+                        // For full-size backgrounds, keep at 0,0
+                        if (enriched.category === 'Background' && metadata.width > 900) {
+                            x = 0;
+                            y = 0;
+                        }
+
+                        // Override position with precise calculated values
+                        enriched.position = {
+                            x,
+                            y,
+                            width: metadata.width,
+                            height: metadata.height
+                        };
+
+                        console.log(`📏 Adjusted position for ${enriched.name}: ${x}, ${y} (${metadata.width}x${metadata.height})`);
+                    }
+                }
+            } catch (err) {
+                console.error('⚠️ Error calculating dynamic position:', err);
+            }
+
+            return enriched;
         }));
 
         return new Response(JSON.stringify({

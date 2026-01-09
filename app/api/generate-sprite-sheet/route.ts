@@ -10,7 +10,7 @@ const TECHNICAL_SPEC = {
         colorProfile: "matte finish, vibrant colors"
     },
     environment: {
-        background: " #b8b8b8",
+        background: "#00FF00",
         lighting: "global ambient lighting, no drop shadows, no environmental depth",
         perspective: "orthographic front-view"
     },
@@ -90,7 +90,7 @@ Rarities should sum to 100% per layer. Create visually distinct variations!
 
 SPACING AND LAYOUT:
 - Arrange assets in a grid with clear separation
-- Each asset must have at least 50px of grey (#b8b8b8) background space around it
+- Each asset must have at least 50px of bright green (#00FF00) background space around it
 - Assets must NOT touch or overlap - they should be completely isolated
 - Example layout: [Head1] [50px space] [Head2] [50px space] [Head3]
                    [50px space]
@@ -98,23 +98,27 @@ SPACING AND LAYOUT:
                    [50px space]
                    [Background]
 
-STANDARD NFT POSITIONING (for reference):
-- Background: x=0, y=0, width=1024, height=1024 (full canvas)
-- Body: x=256, y=400, width=512, height=624 (centered, lower half, neck at top)
-- Head: x=312, y=100, width=400, height=320 (centered, chin at y=420 connects to body neck)
+STANDARD DIMENSIONS (CRITICAL):
+- HEAD: 320px width x 320px height (approx). Neck width at bottom MUST be exactly 60px.
+- BODY: 500px width x 500px height (approx). Neck width at top MUST be exactly 60px.
+- NECK JOINT: Both head and body must have a 60px flat or slightly curved connector to fit perfectly.
 
-CRITICAL ALIGNMENT RULES:
-- Head bottom edge (y + height) should be at y=420 (connects to body at neck)
-- Body top edge should be at y=400 (connects to head at neck)  
-- Head should be sized to match body proportions (width ~400px, height ~320px)
-- All parts horizontally centered (x around 256-512 range)
+STANDARD NFT POSITIONING (for reference):
+- Background: x=0, y=0, width=1024, height=1024
+- Body: Centered, Top edge at y=400
+- Head: Centered, Bottom edge at y=420
+
+ALIGNMENT RULES:
+- Head bottom edge (y + height) should be at y=420
+- Body top edge should be at y=400
+- This creates a 20px overlap for the neck connection.
 
 CRITICAL RULES:
 ${TECHNICAL_SPEC.constraints.map(c => `- ${c}`).join('\n')}
 
 ABSOLUTELY NO TEXT, LABELS, WORDS, OR TYPOGRAPHY IN THE IMAGE. Only visual assets.
 
-Create a clean, organized sprite sheet with all assets clearly separated on grey background.`;
+Create a clean, organized sprite sheet with all assets clearly separated on bright green (#00FF00) background.`;
 
         console.log('📝 Sprite Sheet Prompt:');
         console.log('='.repeat(80));

@@ -2,23 +2,28 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-// Configuration - more conservative to preserve grey colors in characters
-const GREY_THRESHOLD = 20; // Reduced from 80 to only remove very close matches
-const GREY_R = 184;
-const GREY_G = 184;
-const GREY_B = 184;
+// Configuration - check multiple green targets
+const GREEN_THRESHOLD = 60;
+const CLEANING_THRESHOLD = 80; // More aggressive for cleaning fringing
+const TARGETS = [
+    { r: 148, g: 196, b: 111 }, // Yellowish-green
+    { r: 0, g: 255, b: 0 },     // Pure green
+    { r: 120, g: 227, b: 43 }   // Rick & Morty Lime Green
+];
 
-const isBackgroundGrey = (r, g, b) => {
-    // Only remove pixels that are VERY close to the exact background grey
-    // This preserves grey colors in the character
-    const diff = Math.abs(r - GREY_R) + Math.abs(g - GREY_G) + Math.abs(b - GREY_B);
-    return diff < GREY_THRESHOLD;
+const isBackgroundGreen = (r, g, b, threshold = GREEN_THRESHOLD) => {
+    // Check against all target greens
+    return TARGETS.some(target => {
+        const diff = Math.abs(r - target.r) + Math.abs(g - target.g) + Math.abs(b - target.b);
+        return diff < threshold;
+    });
 };
 
 async function extractAndAssemble() {
     console.log('🎨 Starting sprite sheet extraction test...\n');
 
-    const inputPath = '/Users/mac/.gemini/antigravity/brain/83701b75-1a03-482a-91b0-fc5eef64eb89/uploaded_image_1767973972874.jpg';
+    // Load the new sprite sheet with green background
+    const inputPath = '/Users/mac/.gemini/antigravity/brain/83701b75-1a03-482a-91b0-fc5eef64eb89/uploaded_image_1767979446802.png';
     const image = sharp(inputPath);
     const metadata = await image.metadata();
     const { width, height } = metadata;
@@ -53,7 +58,7 @@ async function extractAndAssemble() {
             if (x < 0 || x >= info.width || y < 0 || y >= info.height) continue;
 
             const pixel = getPixel(x, y);
-            if (isBackgroundGrey(pixel.r, pixel.g, pixel.b)) continue;
+            if (isBackgroundGreen(pixel.r, pixel.g, pixel.b)) continue;
 
             visited.add(key);
             pixelCount++;
@@ -83,11 +88,10 @@ async function extractAndAssemble() {
             if (visited.has(`${x},${y}`)) continue;
 
             const pixel = getPixel(x, y);
-            if (!isBackgroundGrey(pixel.r, pixel.g, pixel.b)) {
+            if (!isBackgroundGreen(pixel.r, pixel.g, pixel.b)) {
                 const region = floodFill(x, y);
                 if (region) {
                     regions.push(region);
-                    console.log(`  Found region ${regions.length}: ${region.width}x${region.height} at (${region.left}, ${region.top}) - ${region.pixelCount} pixels`);
                 }
             }
         }
@@ -104,19 +108,26 @@ async function extractAndAssemble() {
     console.log('✂️ Extracting and cleaning traits...\n');
     for (let i = 0; i < regions.length; i++) {
         const region = regions[i];
+
+        // Add padding and ensure bounds are within image
         const padding = 10;
+        const left = Math.max(0, region.left - padding);
+        const top = Math.max(0, region.top - padding);
+        const right = Math.min(info.width, region.left + region.width + padding);
+        const bottom = Math.min(info.height, region.top + region.height + padding);
+
         const extractRegion = {
-            left: Math.max(0, region.left - padding),
-            top: Math.max(0, region.top - padding),
-            width: Math.min(info.width - region.left + padding, region.width + padding * 2),
-            height: Math.min(info.height - region.top + padding, region.height + padding * 2)
+            left,
+            top,
+            width: right - left,
+            height: bottom - top
         };
 
         const croppedBuffer = await sharp(inputPath)
             .extract(extractRegion)
             .toBuffer();
 
-        // Conservative background removal - only remove very close matches to background grey
+        // Conservative background removal
         const transparentBuffer = await sharp(croppedBuffer)
             .removeAlpha()
             .ensureAlpha()
@@ -129,8 +140,9 @@ async function extractAndAssemble() {
             const g = pixelData[j + 1];
             const b = pixelData[j + 2];
 
-            // Only make transparent if it's VERY close to background grey
-            if (isBackgroundGrey(r, g, b)) {
+            // Only make transparent if it's green background
+            // Use stricter cleaning threshold to remove fringing
+            if (isBackgroundGreen(r, g, b, CLEANING_THRESHOLD)) {
                 pixelData[j + 3] = 0;
             }
         }
@@ -143,6 +155,7 @@ async function extractAndAssemble() {
             }
         })
             .png()
+            .trim()
             .toBuffer();
 
         const traitPath = path.join(outputDir, `trait_${i + 1}.png`);

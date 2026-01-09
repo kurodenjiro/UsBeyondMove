@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Eye, EyeOff, Sparkles } from "lucide-react";
+import { X, Eye, EyeOff, Sparkles, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -264,18 +264,49 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {/* Create New Asset Card */}
+                                <button
+                                    onClick={() => {
+                                        setTraits(prev => [{
+                                            name: `Asset ${prev.length + 1}`,
+                                            rarity: 100,
+                                            imageUrl: '',
+                                            description: '',
+                                            aiPrompt: ''
+                                        }, ...prev]);
+                                    }}
+                                    className="flex flex-col items-center justify-center gap-3 p-4 bg-white/[0.02] border border-dashed border-white/10 rounded-xl hover:bg-white/[0.04] hover:border-primary/50 hover:shadow-[0_0_15px_rgba(0,245,255,0.1)] transition-all group min-h-[300px]"
+                                >
+                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                                        <svg className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm font-semibold text-muted-foreground group-hover:text-white transition-colors">Create New Asset</span>
+                                </button>
+
                                 {traits.map((trait, index) => (
-                                    <div key={index} className="flex flex-col gap-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-colors group">
+                                    <div key={index} className="flex flex-col gap-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-colors group relative">
+
+                                        {/* Delete Button */}
+                                        <button
+                                            onClick={() => {
+                                                setTraits(prev => prev.filter((_, i) => i !== index));
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-500/20 text-white/50 hover:text-red-500 rounded-lg transition-colors z-20"
+                                            title="Remove Asset"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
 
                                         {/* Header: Name and Rarity */}
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between pr-8">
                                             <input
                                                 value={trait.name}
                                                 onChange={(e) => updateTraitField(index, 'name', e.target.value)}
-                                                className="flex-1 bg-transparent border border-transparent hover:border-white/10 focus:border-white/20 rounded px-2 py-1 outline-none font-semibold text-sm"
+                                                className="flex-1 bg-transparent border border-transparent hover:border-white/10 focus:border-white/20 rounded px-2 py-1 outline-none font-semibold text-sm w-full"
                                                 placeholder="Trait name"
                                             />
-                                            <span className="font-mono text-xs text-primary/80 px-2 py-1 bg-primary/10 rounded ml-2">{trait.rarity}%</span>
                                         </div>
 
                                         {/* Large Clickable Image */}
@@ -296,6 +327,7 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                                 }}
                                             />
                                             <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-white/5 to-white/10 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden transition-all group-hover/image:border-primary/50 group-hover/image:shadow-[0_0_30px_rgba(0,245,255,0.3)] relative">
+                                                {/* Existing Image Logic ... */}
                                                 {trait.isGenerating && (
                                                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
                                                         <div className="flex flex-col items-center gap-3">
@@ -340,14 +372,9 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                                                 });
 
                                                                 const data = await response.json();
-                                                                console.log('✅ Image generation response:', data);
-                                                                console.log('📏 Data URL length:', data.url?.length || 0);
 
                                                                 if (data.url) {
-                                                                    console.log('🖼️ Setting imageUrl (first 100 chars):', data.url.substring(0, 100));
                                                                     updateTraitField(index, 'imageUrl', data.url);
-                                                                } else if (data.error) {
-                                                                    console.error('❌ Image generation error:', data.error);
                                                                 }
                                                             } catch (error) {
                                                                 console.error('❌ Failed to generate image:', error);

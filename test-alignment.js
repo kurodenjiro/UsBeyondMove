@@ -100,18 +100,33 @@ async function testBodyHeadAlignment() {
             </svg>
         `;
 
+        // Calculate positions dynamically for proper alignment
+        const canvasCenter = 1024 / 2;
+
+        // 1. Center Body horizontally
+        // 2. Align Body Top to y=400
+        const bodyMetadata = await sharp(bodyPath).metadata();
+        const bodyLeft = Math.round(canvasCenter - (bodyMetadata.width / 2));
+        const bodyTop = 400; // Body starts at y=400
+
+        // 1. Center Head horizontally
+        // 2. Align Head Bottom to y=420 (Neck Connection)
+        const headMetadata = await sharp(headPath).metadata();
+        const headLeft = Math.round(canvasCenter - (headMetadata.width / 2));
+        const headTop = 420 - headMetadata.height; // Head ends at y=420
+
         const composites = [
-            // Add body
+            // Add body aligned to top y=400
             {
                 input: bodyPath,
-                top: POSITIONS.body.y,
-                left: POSITIONS.body.x
+                top: bodyTop,
+                left: bodyLeft
             },
-            // Add head
+            // Add head aligned to bottom y=420
             {
                 input: headPath,
-                top: POSITIONS.head.y,
-                left: POSITIONS.head.x
+                top: headTop,
+                left: headLeft
             },
             // Add reference lines
             {
