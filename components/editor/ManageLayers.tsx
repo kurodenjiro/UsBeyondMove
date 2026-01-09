@@ -20,7 +20,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { cn } from '@/lib/utils';
-import { Settings, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Settings, Image as ImageIcon, Trash2, Dices } from 'lucide-react';
 
 // Custom Node Component
 const CustomLayerNode = ({ data }: { data: { label: string, traits: any[], onSettings: () => void } }) => {
@@ -83,6 +83,21 @@ export const ManageLayers = () => {
 
     // Preview Selection State (Node ID -> Trait Index)
     const [selectedTraits, setSelectedTraits] = useState<Record<string, number>>({});
+
+    const handleRandomizeMix = () => {
+        const newSelectedTraits: Record<string, number> = {};
+        nodes.forEach(node => {
+            const traitsWithImages = node.data.traits
+                ?.map((t: any, idx: number) => ({ ...t, originalIndex: idx }))
+                .filter((t: any) => t.imageUrl) || [];
+
+            if (traitsWithImages.length > 0) {
+                const randomIdx = Math.floor(Math.random() * traitsWithImages.length);
+                newSelectedTraits[node.id] = traitsWithImages[randomIdx].originalIndex;
+            }
+        });
+        setSelectedTraits(newSelectedTraits);
+    };
 
     const handleSettingsClick = (nodeId: string, nodePosition: { x: number, y: number }, layerData: any) => {
         setSelectedNodeId(nodeId);
@@ -329,9 +344,18 @@ export const ManageLayers = () => {
                             {totalCombinations.toLocaleString()} Possible Combinations
                         </p>
                     </div>
-                    <span className="text-xs font-mono text-muted-foreground bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                        {nodes.filter(n => n.data.traits?.some((t: any) => t.imageUrl)).length} Layers in Mix
-                    </span>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={handleRandomizeMix}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.1)]"
+                        >
+                            <Dices className="w-4 h-4" />
+                            Random Mixed
+                        </button>
+                        <span className="text-xs font-mono text-muted-foreground bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                            {nodes.filter(n => n.data.traits?.some((t: any) => t.imageUrl)).length} Layers in Mix
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-10 items-start">
