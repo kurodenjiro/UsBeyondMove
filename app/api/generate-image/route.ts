@@ -46,10 +46,54 @@ export async function POST(req: Request) {
             throw new Error("No image data returned from Gemini");
         }
 
-        // Convert to base64 data URL
-        const imageUrl = `data:image/png;base64,${imageData}`;
+        // --- NEW: Background Removal & Trimming using sharp ---
+        let finalImageData = imageData;
+        try {
+            const sharp = (await import('sharp')).default;
+            const buffer = Buffer.from(imageData, 'base64');
 
-        console.log("✅ Image generated successfully with Gemini");
+            // 1. Convert white background to transparency
+            // We use raw pixel manipulation for high accuracy on the "Pure White" background
+            const { data, info } = await sharp(buffer)
+                .ensureAlpha()
+                .raw()
+                .toBuffer({ resolveWithObject: true });
+
+            const pixelData = new Uint8Array(data);
+            for (let i = 0; i < pixelData.length; i += 4) {
+                const r = pixelData[i];
+                const g = pixelData[i + 1];
+                const b = pixelData[i + 2];
+
+                // If pixel is white or near-white, make it transparent
+                // Gemini is instructed to use #FFFFFF, but we allow a tiny threshold
+                if (r > 250 && g > 250 && b > 250) {
+                    pixelData[i + 3] = 0;
+                }
+            }
+
+            // 2. Trim the resulting transparent image and convert back to PNG buffer
+            const processedBuffer = await sharp(pixelData, {
+                raw: {
+                    width: info.width,
+                    height: info.height,
+                    channels: 4
+                }
+            })
+                .trim() // Sharp trim now works on the Alpha channel we just created
+                .png()
+                .toBuffer();
+
+            finalImageData = processedBuffer.toString('base64');
+            console.log("✅ Background removed and image trimmed with sharp");
+        } catch (processError) {
+            console.error("⚠️ Sharp processing failed (falling back to original):", processError);
+        }
+
+        // Convert to base64 data URL
+        const imageUrl = `data:image/png;base64,${finalImageData}`;
+
+        console.log("✅ Image processed successfully");
         return new Response(JSON.stringify({ url: imageUrl }), { status: 200 });
 
     } catch (error: any) {

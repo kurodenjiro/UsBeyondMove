@@ -1,0 +1,264 @@
+import { GoogleGenAI } from "@google/genai";
+import { z } from "zod";
+
+export const maxDuration = 60;
+
+const TraitMetadataSchema = z.object({
+    name: z.string().describe("Descriptive name for this trait (e.g., 'Blue Spiky Hair', 'Leather Jacket')"),
+    description: z.string().describe("Brief description of the visual appearance"),
+    category: z.enum(['Background', 'Body', 'Head', 'Other']),
+    position: z.object({
+        x: z.number().describe("X position on 1024x1024 canvas"),
+        y: z.number().describe("Y position on 1024x1024 canvas"),
+        width: z.number().describe("Width on 1024x1024 canvas"),
+        height: z.number().describe("Height on 1024x1024 canvas")
+    }).describe("Position and size for proper alignment"),
+    anchorPoints: z.object({
+        top: z.boolean().describe("Has connection point at top"),
+        bottom: z.boolean().describe("Has connection point at bottom"),
+        left: z.boolean().describe("Has connection point at left"),
+        right: z.boolean().describe("Has connection point at right")
+    }),
+    rarity: z.number().min(1).max(100).describe("Suggested rarity percentage")
+});
+
+const AnalysisResponseSchema = z.object({
+    traits: z.array(TraitMetadataSchema)
+});
+
+export async function POST(req: Request) {
+    try {
+        const { traits } = await req.json();
+
+        const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return new Response(JSON.stringify({ error: "No API key configured" }), { status: 500 });
+        }
+
+        console.log(`🔍 Analyzing ${traits.length} traits with Gemini Vision...`);
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Analyze all traits in one call for efficiency
+        const imageParts = traits.map((trait: any) => ({
+            inlineData: {
+                mimeType: "image/png",
+                data: trait.imageUrl.replace(/^data:image\/\w+;base64,/, '')
+            }
+        }));
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: {
+                role: "user",
+                parts: [
+                    {
+                        text: `You are an expert NFT asset analyzer. Analyze these ${traits.length} character assets extracted from a sprite sheet.
+
+For EACH asset image, provide:
+1. **Name**: Descriptive name (e.g., "Blue Spiky Hair", "Leather Jacket", "Smiling Mouth")
+2. **Description**: Brief visual description
+3. **Category**: Choose the MOST SPECIFIC category that fits:
+   - **Background**: Full canvas backgrounds, scenery, environments
+   - **Body**: Torso, shoulders, neck (mannequin-like body parts)
+   - **Head**: Complete head/face (round/oval shape with facial features)
+   - **Other**: Only if none of the above fit
+
+4. **Position**: Where this trait should be positioned on a 1024x1024 canvas
+   - **Background**: x=0, y=0, width=1024, height=1024 (full canvas)
+   - **Body**: x=256, y=400, width=512, height=624 (centered, lower half, neck at top)
+   - **Head**: x=312, y=100, width=400, height=320 (centered, chin at y=420 connects to body neck)
+
+5. **Anchor Points**: Which edges have connection points for assembly
+6. **Rarity**: Suggested rarity percentage (1-100)
+
+POSITIONING RULES:
+- All traits should align on a standard 1024x1024 canvas
+- **CRITICAL**: Head bottom edge (y + height) should be at y=420 (connects to body at neck)
+- **CRITICAL**: Body top edge should be at y=400 (connects to head at neck)
+- All parts should be horizontally centered (x around 256-512 range)
+
+CRITICAL: Analyze the visual content and determine the optimal position for proper character assembly.
+
+Return JSON array with one entry per image in the same order.`
+                    },
+                    ...imageParts
+                ]
+            },
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "object",
+                    properties: {
+                        traits: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    name: { type: "string" },
+                                    description: { type: "string" },
+                                    category: {
+                                        type: "string",
+                                        enum: ['Background', 'Body', 'Head', 'Other']
+                                    },
+                                    position: {
+                                        type: "object",
+                                        properties: {
+                                            x: { type: "number" },
+                                            y: { type: "number" },
+                                            width: { type: "number" },
+                                            height: { type: "number" }
+                                        },
+                                        required: ["x", "y", "width", "height"]
+                                    },
+                                    anchorPoints: {
+                                        type: "object",
+                                        properties: {
+                                            top: { type: "boolean" },
+                                            bottom: { type: "boolean" },
+                                            left: { type: "boolean" },
+                                            right: { type: "boolean" }
+                                        },
+                                        required: ["top", "bottom", "left", "right"]
+                                    },
+                                    rarity: { type: "number" }
+                                },
+                                required: ["name", "description", "category", "position", "anchorPoints", "rarity"]
+                            }
+                        }
+                    },
+                    required: ["traits"]
+                }
+            }
+        });
+
+        const resultText = response.candidates[0].content.parts[0].text || "{}";
+        console.log('📝 Raw response text:', resultText.substring(0, 200));
+
+        const cleanedText = resultText.replace(/^```json\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+
+        let analysis;
+        try {
+            analysis = JSON.parse(cleanedText);
+        } catch (parseError) {
+            console.error('❌ JSON parse error:', parseError);
+            console.error('📝 Failed text:', cleanedText.substring(0, 500));
+
+            // Fallback: create basic structure
+            analysis = {
+                traits: traits.map((t: any, i: number) => ({
+                    Name: `Trait ${i + 1}`,
+                    Description: 'Character asset',
+                    Category: 'Other',
+                    'Anchor Points': { top: false, bottom: false, left: false, right: false },
+                    Rarity: 50
+                }))
+            };
+        }
+
+        console.log('🔍 Parsed AI response:', JSON.stringify(analysis, null, 2).substring(0, 500));
+
+        // Handle case where Gemini returns array directly instead of wrapped in object
+        if (Array.isArray(analysis)) {
+            analysis = { traits: analysis };
+        }
+
+        // Add fallback values for incomplete trait data
+        if (analysis.traits) {
+            analysis.traits = analysis.traits.map((trait: any, index: number) => {
+                // Handle both capitalized and lowercase field names
+                const name = trait?.name || trait?.Name;
+                const description = trait?.description || trait?.Description;
+                const category = trait?.category || trait?.Category;
+                const position = trait?.position || trait?.Position;
+                let anchorPoints = trait?.anchorPoints || trait?.['Anchor Points'];
+                const rarity = trait?.rarity || trait?.Rarity;
+
+                // Convert string anchor points to object format
+                if (typeof anchorPoints === 'string') {
+                    const anchorStr = anchorPoints.toLowerCase();
+                    anchorPoints = {
+                        top: anchorStr.includes('top'),
+                        bottom: anchorStr.includes('bottom'),
+                        left: anchorStr.includes('left'),
+                        right: anchorStr.includes('right')
+                    };
+                } else if (Array.isArray(anchorPoints)) {
+                    // Handle array format like ["All"] or ["Top", "Bottom"]
+                    const anchorStr = anchorPoints.join(' ').toLowerCase();
+                    const hasAll = anchorStr.includes('all');
+                    anchorPoints = {
+                        top: hasAll || anchorStr.includes('top'),
+                        bottom: hasAll || anchorStr.includes('bottom'),
+                        left: hasAll || anchorStr.includes('left'),
+                        right: hasAll || anchorStr.includes('right')
+                    };
+                }
+
+                const hasValidCategory = category && [
+                    'Background', 'Body', 'Head', 'Other'
+                ].includes(category);
+
+                if (!hasValidCategory) {
+                    console.log(`⚠️ Trait ${index} has invalid/missing category:`, category);
+                }
+
+                // Default positions by category
+                const defaultPositions: Record<string, any> = {
+                    'Background': { x: 0, y: 0, width: 1024, height: 1024 },
+                    'Body': { x: 256, y: 400, width: 512, height: 624 },
+                    'Head': { x: 312, y: 100, width: 400, height: 320 },
+                    'Other': { x: 0, y: 0, width: 1024, height: 1024 }
+                };
+
+                const finalCategory = hasValidCategory ? category : 'Other';
+
+                // Ensure rarity is valid (1-100)
+                let validRarity = typeof rarity === 'number' ? rarity : 50;
+                if (validRarity < 1) validRarity = 1;
+                if (validRarity > 100) validRarity = 100;
+
+                return {
+                    name: name || `Trait ${index + 1}`,
+                    description: description || 'Character asset',
+                    category: finalCategory,
+                    position: position || defaultPositions[finalCategory],
+                    anchorPoints: anchorPoints || {
+                        top: false,
+                        bottom: false,
+                        left: false,
+                        right: false
+                    },
+                    rarity: validRarity
+                };
+            });
+        }
+
+        // Validate with Zod
+        const validated = AnalysisResponseSchema.parse(analysis);
+
+        console.log(`✅ Analyzed ${validated.traits.length} traits`);
+        validated.traits.forEach((trait, i) => {
+            console.log(`  ${i + 1}. ${trait.name} (${trait.category}) - Rarity: ${trait.rarity}%`);
+        });
+
+        // Merge analysis with original trait data
+        const enrichedTraits = traits.map((trait: any, index: number) => ({
+            ...trait,
+            ...validated.traits[index]
+        }));
+
+        return new Response(JSON.stringify({
+            traits: enrichedTraits
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error: any) {
+        console.error("❌ Trait analysis failed:", error);
+        return new Response(JSON.stringify({
+            error: error.message || "Failed to analyze traits"
+        }), { status: 500 });
+    }
+}

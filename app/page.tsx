@@ -40,36 +40,93 @@ export default function Home() {
         return;
       }
 
-      // 2. Analysis Flow (The Architect)
-      setStatus("Analyzing Concept...");
-      const analyzeResponse = await fetch('/api/analyze', {
+      // 2. Generate Sprite Sheet
+      setStatus("Generating Sprite Sheet...");
+      const spriteResponse = await fetch('/api/generate-sprite-sheet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Payment-Hash': paymentHeader // Send the x402 proof header
+          'X-Payment-Hash': paymentHeader
         },
-        body: JSON.stringify({
-          prompt,
-          aspectRatio: selectedRatio,
-          upscale: selectedUpscale
-        })
+        body: JSON.stringify({ prompt })
       });
-      const analysisData = await analyzeResponse.json();
-      console.log("--- ANALYSIS RESULT ---");
-      console.log(analysisData);
-      console.log("-----------------------");
 
-      if (!analysisData.layers) throw new Error("Failed to analyze layers");
+      if (!spriteResponse.ok) throw new Error("Failed to generate sprite sheet");
 
-      // 3. Save to DB and Redirect
+      const { url: spriteSheetUrl, base64: spriteSheetData } = await spriteResponse.json();
+      console.log("✅ Sprite sheet generated");
+
+      // 3. Extract Individual Traits with Sharp
+      setStatus("Extracting Traits...");
+      const extractResponse = await fetch('/api/extract-traits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment-Hash': paymentHeader
+        },
+        body: JSON.stringify({ imageData: spriteSheetUrl })
+      });
+
+      if (!extractResponse.ok) throw new Error("Failed to extract traits");
+
+      const { traits: extractedTraits } = await extractResponse.json();
+      console.log(`✅ Extracted ${extractedTraits.length} traits`);
+
+      // 4. Analyze Traits with Gemini Vision
+      setStatus("Analyzing Traits...");
+      const analyzeResponse = await fetch('/api/analyze-traits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment-Hash': paymentHeader
+        },
+        body: JSON.stringify({ traits: extractedTraits })
+      });
+
+      if (!analyzeResponse.ok) throw new Error("Failed to analyze traits");
+
+      const { traits: analyzedTraits } = await analyzeResponse.json();
+      console.log(`✅ Analyzed ${analyzedTraits.length} traits`);
+
+      // 5. Group traits by category into layers
+      const layerMap = new Map<string, any>();
+
+      analyzedTraits.forEach((trait: any) => {
+        const layerName = trait.category || 'Other';
+        if (!layerName) {
+          console.warn('⚠️ Skipping trait with missing category:', trait);
+          return;
+        }
+
+        if (!layerMap.has(layerName)) {
+          layerMap.set(layerName, {
+            name: layerName,
+            parentLayer: getParentLayer(layerName),
+            position: getDefaultPosition(layerName),
+            aiPrompt: `A minimalist 2D flat vector nft asset of ${layerName.toLowerCase()}`,
+            traits: []
+          });
+        }
+
+        layerMap.get(layerName)!.traits.push({
+          name: trait.name,
+          rarity: trait.rarity,
+          imageUrl: trait.imageUrl,
+          description: trait.description,
+          anchorPoints: trait.anchorPoints
+        });
+      });
+
+      const layers = Array.from(layerMap.values());
+
+      // 6. Save to DB and Redirect
       setStatus("Saving Project...");
-
       const saveResponse = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
-          layers: analysisData.layers,
+          layers,
           ownerAddress: user?.wallet?.address,
           aspectRatio: selectedRatio,
           upscale: selectedUpscale
@@ -82,41 +139,44 @@ export default function Home() {
 
       setStatus("Redirecting to Editor...");
       router.push(`/nft-generate-editor?id=${id}`);
-      return;
 
-      /* 
-      // LEGACY: Generation Flow (The Artist)
-      setStatus(`Generating ${analysisData.layers.length} Layers...`);
-      const generatedLayers = [];
-
-      for (const layer of analysisData.layers) {
-        setStatus(`Generating ${layer.name}...`);
-        const imageResponse = await fetch('/api/generate-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Payment-Hash': paymentHeader // Send the x402 proof header
-          },
-          body: JSON.stringify({ prompt: layer.description, style: selectedStyle })
-        });
-        const imageData = await imageResponse.json();
-        generatedLayers.push({ ...layer, url: imageData.url });
-      }
-
-      console.log("Final Generated Assets:", generatedLayers);
-      setStatus("Generation Complete!");
-      */
-
-      console.log("Final Generated Assets:", generatedLayers);
-      setStatus("Generation Complete!");
-
-    } catch (e) {
-      console.error("Generation error:", e);
-      setStatus("Error during generation");
+    } catch (error: any) {
+      console.error("Generation failed:", error);
+      setStatus(`Error: ${error.message}`);
     } finally {
       setIsGenerating(false);
-      setTimeout(() => setStatus(""), 3000);
     }
+  };
+
+  // Helper functions
+  const getParentLayer = (category: string): string => {
+    const hierarchy: Record<string, string> = {
+      'Background': '',
+      'Body': 'Background',
+      'Head': 'Body',
+      'Hair': 'Head',
+      'Eyes': 'Head',
+      'Mouth': 'Head',
+      'Clothes': 'Body',
+      'Accessory': 'Head',
+      'Weapon': 'Body'
+    };
+    return hierarchy[category] || '';
+  };
+
+  const getDefaultPosition = (category: string) => {
+    const positions: Record<string, any> = {
+      'Background': { x: 0, y: 0, width: 1024, height: 1024 },
+      'Body': { x: 256, y: 400, width: 512, height: 624 },
+      'Head': { x: 352, y: 100, width: 320, height: 320 },
+      'Hair': { x: 312, y: 0, width: 400, height: 200 },
+      'Eyes': { x: 400, y: 180, width: 224, height: 80 },
+      'Mouth': { x: 450, y: 280, width: 124, height: 60 },
+      'Clothes': { x: 256, y: 400, width: 512, height: 624 },
+      'Accessory': { x: 350, y: 50, width: 324, height: 200 },
+      'Weapon': { x: 100, y: 500, width: 200, height: 400 }
+    };
+    return positions[category] || { x: 0, y: 0, width: 1024, height: 1024 };
   };
 
   return (

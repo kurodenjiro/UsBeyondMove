@@ -20,7 +20,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { cn } from '@/lib/utils';
-import { Settings, Image as ImageIcon, Trash2, Dices } from 'lucide-react';
+import { Settings, Image as ImageIcon, Trash2, Dices, Move } from 'lucide-react';
 
 // Custom Node Component
 const CustomLayerNode = ({ data }: { data: { label: string, traits: any[], onSettings: () => void } }) => {
@@ -55,9 +55,9 @@ const nodeTypes = {
 };
 
 const initialNodes: Node[] = [
-    { id: '1', type: 'customLayer', position: { x: 100, y: 100 }, data: { label: 'Background', rarity: 100 } },
-    { id: '2', type: 'customLayer', position: { x: 400, y: 50 }, data: { label: 'Body', rarity: 100 } },
-    { id: '3', type: 'customLayer', position: { x: 400, y: 200 }, data: { label: 'Head', rarity: 100 } },
+    { id: '1', type: 'customLayer', position: { x: 100, y: 100 }, data: { label: 'Background', rarity: 100, position: { x: 0, y: 0, width: 1024, height: 1024 } } },
+    { id: '2', type: 'customLayer', position: { x: 450, y: 100 }, data: { label: 'Body', rarity: 100, position: { x: 0, y: 0, width: 1024, height: 1024 } } },
+    { id: '3', type: 'customLayer', position: { x: 800, y: 100 }, data: { label: 'Head', rarity: 100, position: { x: 0, y: 0, width: 1024, height: 1024 } } },
 ];
 
 const initialEdges: Edge[] = [
@@ -73,6 +73,7 @@ export const ManageLayers = () => {
     const projectId = searchParams.get('id');
     const [nodes, setNodes] = useState<Node[]>(initialNodes);
     const [edges, setEdges] = useState<Edge[]>(initialEdges);
+    const [projectPrompt, setProjectPrompt] = useState<string>('');
 
     const [isLoading, setIsLoading] = useState(!!projectId);
 
@@ -80,9 +81,18 @@ export const ManageLayers = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLayer, setSelectedLayer] = useState<any>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-
-    // Preview Selection State (Node ID -> Trait Index)
+    const [isSaving, setIsSaving] = useState(false);
+    const [isRearranging, setIsRearranging] = useState(false);
     const [selectedTraits, setSelectedTraits] = useState<Record<string, number>>({});
+
+    // Calculate Layer Depth for proper stacking
+    const getLayerDepth = (node: Node, allNodes: Node[]): number => {
+        if (!node.data.parentLayer || node.data.parentLayer === '') return 0;
+        const parent = allNodes.find(n => n.data.label === node.data.parentLayer);
+        // Avoid infinite loops and self-referencing
+        if (!parent || parent.id === node.id) return 0;
+        return 1 + getLayerDepth(parent, allNodes);
+    };
 
     const handleRandomizeMix = () => {
         const newSelectedTraits: Record<string, number> = {};
@@ -99,10 +109,114 @@ export const ManageLayers = () => {
         setSelectedTraits(newSelectedTraits);
     };
 
-    const handleSettingsClick = (nodeId: string, nodePosition: { x: number, y: number }, layerData: any) => {
+    const handleSettingsClick = (nodeId: string, layerData: any) => {
         setSelectedNodeId(nodeId);
-        setSelectedLayer({ ...layerData, position: nodePosition }); // Include node position
+        setSelectedLayer(layerData); // Use metadata position, not graph position
         setIsModalOpen(true);
+    };
+
+    const handleRearrange = async () => {
+        if (!projectId || isRearranging) return;
+
+        try {
+            setIsRearranging(true);
+
+            // Step 1: Create composite image from all traits
+            console.log('🎨 Creating composite image...');
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+
+            if (!ctx) throw new Error('Failed to get canvas context');
+
+            // Fill with white background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            // Draw each layer's traits
+            const layerData = [];
+            for (const node of nodes) {
+                const traits = node.data.traits || [];
+                const position = node.data.position || { x: 0, y: 0, width: 1024, height: 1024 };
+
+                // Draw all traits for this layer
+                for (const trait of traits) {
+                    if (trait.imageUrl) {
+                        try {
+                            await new Promise<void>((resolve, reject) => {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.onload = () => {
+                                    ctx.drawImage(img, position.x, position.y, position.width, position.height);
+                                    resolve();
+                                };
+                                img.onerror = () => reject(new Error(`Failed to load ${trait.name}`));
+                                img.src = trait.imageUrl;
+                            });
+                        } catch (error) {
+                            console.warn(`⚠️ Skipping trait ${trait.name}:`, error);
+                        }
+                    }
+                }
+
+                layerData.push({
+                    name: node.data.label,
+                    parentLayer: node.data.parentLayer,
+                    position: position,
+                    traits: traits.map((t: any) => ({ name: t.name, hasImage: !!t.imageUrl })),
+                    aiPrompt: node.data.aiPrompt
+                });
+            }
+
+            // Convert canvas to base64
+            const compositeImage = canvas.toDataURL('image/png');
+            console.log('✅ Composite image created');
+
+            // Step 2: Send to AI for analysis
+            const response = await fetch('/api/rearrange', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: projectPrompt,
+                    compositeImage: compositeImage,
+                    layers: layerData
+                })
+            });
+
+            if (!response.ok) throw new Error("Failed to rearrange");
+
+            const data = await response.json();
+            console.log("Rearrange AI Response:", data);
+
+            // Map the new positions to the nodes
+            setNodes((nds) => {
+                const updatedNodes = nds.map(node => {
+                    const aiLayer = data.layers.find((l: any) => l.name === node.data.label);
+                    if (aiLayer) {
+                        console.log(`Updating ${node.data.label} position:`, aiLayer.position);
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                                position: aiLayer.position
+                            }
+                        };
+                    }
+                    return node;
+                });
+
+                // Auto-save after update
+                handleSaveProject(updatedNodes, edges);
+                return updatedNodes;
+            });
+
+            console.log("✅ Layers rearranged by AI");
+        } catch (error) {
+            console.error("❌ Rearrange failed:", error);
+        } finally {
+            setIsRearranging(false);
+        }
     };
 
     const handleSaveProject = async (currentNodes: Node[], currentEdges: Edge[]) => {
@@ -115,7 +229,7 @@ export const ManageLayers = () => {
                 description: node.data.description,
                 parentLayer: node.data.parentLayer,
                 rarity: node.data.rarity,
-                position: node.position
+                position: node.data.position || node.position
             }));
 
             const response = await fetch(`/api/projects/${projectId}`, {
@@ -140,12 +254,13 @@ export const ManageLayers = () => {
                 if (node.id === selectedNodeId) {
                     return {
                         ...node,
-                        position: updatedData.position || node.position,
+                        // Keep the graph position as is, or use node.position if we want to preserve drag
+                        position: node.position,
                         data: {
                             ...node.data,
                             label: updatedData.label,
                             description: updatedData.description,
-                            position: updatedData.position,
+                            position: updatedData.position, // This is the 1024x1024 metadata from the modal
                             rarity: updatedData.rarity,
                             traits: updatedData.traits,
                             parentLayer: updatedData.parentLayer
@@ -220,21 +335,35 @@ export const ManageLayers = () => {
 
                 const data = await response.json();
                 console.log("Hydrating project from DB:", data);
+                setProjectPrompt(data.prompt || '');
 
                 if (data.layers && Array.isArray(data.layers)) {
-                    const newNodes: Node[] = data.layers.map((layer: any, index: number) => ({
-                        id: `ai-${index}`,
-                        type: 'customLayer',
-                        // Use AI Position if available, else fallback to HORIZONTAL grid
-                        position: layer.position ? { x: layer.position.x, y: layer.position.y } : { x: 50 + (index * 350), y: 250 },
-                        data: {
-                            label: layer.name,
-                            traits: layer.traits, // Pass full traits array
-                            description: layer.description,
-                            parentLayer: layer.parentLayer, // Store parent layer name
-                            rarity: layer.rarity
-                        }
-                    }));
+                    const newNodes: Node[] = data.layers.map((layer: any, index: number) => {
+                        console.log(`🔄 Hydrating layer "${layer.name}":`, {
+                            traits: layer.traits,
+                            position: layer.position
+                        });
+
+                        return {
+                            id: `ai-${index}`,
+                            type: 'customLayer',
+                            // Use AI Position if available, else fallback to HORIZONTAL grid
+                            position: layer.position ? { x: layer.position.x, y: layer.position.y } : { x: 50 + (index * 350), y: 250 },
+                            data: {
+                                label: layer.name,
+                                traits: layer.traits, // Pass full traits array
+                                description: layer.description,
+                                parentLayer: layer.parentLayer, // Store parent layer name
+                                rarity: layer.rarity,
+                                position: layer.position ? {
+                                    x: layer.position.x ?? 0,
+                                    y: layer.position.y ?? 0,
+                                    width: layer.position.width ?? 1024,
+                                    height: layer.position.height ?? 1024
+                                } : { x: 0, y: 0, width: 1024, height: 1024 }
+                            }
+                        };
+                    });
 
                     // Create edges based on parentLayer relationships
                     const newEdges: Edge[] = [];
@@ -270,7 +399,7 @@ export const ManageLayers = () => {
 
     // Combinations calculation
     const totalCombinations = nodes.reduce((acc, node) => {
-        const traitCount = node.data.traits?.filter((t: any) => t.name.trim() !== "").length || 0;
+        const traitCount = node.data.traits?.filter((t: any) => t.name && t.name.trim() !== "").length || 0;
         return acc * (traitCount || 1);
     }, 1);
 
@@ -299,7 +428,7 @@ export const ManageLayers = () => {
                         ...n,
                         data: {
                             ...n.data,
-                            onSettings: () => handleSettingsClick(n.id, n.position, n.data)
+                            onSettings: () => handleSettingsClick(n.id, n.data)
                         }
                     }))}
                     edges={edges}
@@ -346,6 +475,14 @@ export const ManageLayers = () => {
                     </div>
                     <div className="flex items-center gap-4">
                         <button
+                            onClick={handleRearrange}
+                            disabled={isRearranging}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Move className={`w-4 h-4 ${isRearranging ? 'animate-spin' : ''}`} />
+                            {isRearranging ? 'Rearranging...' : 'Rearrange Pos'}
+                        </button>
+                        <button
                             onClick={handleRandomizeMix}
                             className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.1)]"
                         >
@@ -358,37 +495,99 @@ export const ManageLayers = () => {
                     </div>
                 </div>
 
+                {/* SVG Filter for Luma Key (White to Transparent) */}
+                <svg style={{ position: 'absolute', width: 0, height: 0, pointerEvents: 'none' }} aria-hidden="true">
+                    <defs>
+                        <filter id="luma-key" colorInterpolationFilters="sRGB">
+                            {/* 1. Detect White pixels and turn them into Alpha mask */}
+                            <feColorMatrix
+                                type="matrix"
+                                values="
+                                    0 0 0 0 1
+                                    0 0 0 0 1
+                                    0 0 0 0 1
+                                    -5 -5 -5 1 14"
+                                result="mask"
+                            />
+                            {/* 2. Use the mask to 'cut' the original image (SourceIn) */}
+                            <feComposite in="SourceGraphic" in2="mask" operator="in" />
+                        </filter>
+                    </defs>
+                </svg>
+
                 <div className="flex flex-col md:flex-row gap-10 items-start">
                     {/* Big Picture */}
                     <div className="relative w-80 h-80 bg-white rounded-2xl border-2 border-white/10 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] group">
-                        <div className="absolute inset-0 bg-grid-black/[0.02]" />
 
-                        {/* Composite Layers - Sorted by Canvas Position Y (Top-down) */}
-                        {nodes
-                            .filter(n => n.data.traits?.some((t: any) => t.imageUrl))
-                            .sort((a, b) => a.position.y - b.position.y)
-                            .map((node, i) => {
-                                const traitIndex = selectedTraits[node.id] || 0;
-                                const trait = node.data.traits?.[traitIndex]?.imageUrl
-                                    ? node.data.traits[traitIndex]
-                                    : node.data.traits?.find((t: any) => t.imageUrl);
+                        {/* Canvas for Character Assembly */}
+                        <canvas
+                            key={`canvas-${JSON.stringify(selectedTraits)}-${nodes.length}`}
+                            ref={(canvas) => {
+                                if (!canvas) return;
 
-                                if (!trait?.imageUrl) return null;
+                                const ctx = canvas.getContext('2d');
+                                if (!ctx) return;
 
-                                return (
-                                    <img
-                                        key={node.id}
-                                        src={trait.imageUrl}
-                                        alt={node.data.label}
-                                        className="absolute w-full h-full object-contain transition-all duration-500 ease-in-out mix-blend-multiply"
-                                        style={{
-                                            zIndex: i + 10,
-                                            left: `${node.data.position?.x || 0}px`,
-                                            top: `${node.data.position?.y || 0}px`,
-                                        }}
-                                    />
-                                );
-                            })}
+                                // Set canvas size
+                                canvas.width = 1024;
+                                canvas.height = 1024;
+
+                                // Clear canvas
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                                // Helper to load images
+                                const loadImage = (src: string): Promise<HTMLImageElement> => {
+                                    return new Promise((resolve, reject) => {
+                                        const img = new Image();
+                                        img.onload = () => resolve(img);
+                                        img.onerror = reject;
+                                        img.crossOrigin = 'anonymous';
+                                        img.src = src;
+                                    });
+                                };
+
+                                // Render character
+                                const renderCharacter = async () => {
+                                    try {
+                                        // Get layers sorted by depth (parent below child)
+                                        const layersToRender = nodes
+                                            .filter(n => n.data.traits?.some((t: any) => t.imageUrl))
+                                            .sort((a, b) => getLayerDepth(a, nodes) - getLayerDepth(b, nodes));
+
+                                        // Draw each layer in order
+                                        for (const node of layersToRender) {
+                                            const traitIndex = selectedTraits[node.id] || 0;
+                                            const trait = node.data.traits?.[traitIndex]?.imageUrl
+                                                ? node.data.traits[traitIndex]
+                                                : node.data.traits?.find((t: any) => t.imageUrl);
+
+                                            if (!trait?.imageUrl) continue;
+
+                                            // Load image
+                                            const img = await loadImage(trait.imageUrl);
+
+                                            // Get position from trait or node data
+                                            const pos = trait.position || node.data.position || { x: 0, y: 0, width: 1024, height: 1024 };
+
+                                            // Draw at specified position
+                                            ctx.drawImage(
+                                                img,
+                                                pos.x,
+                                                pos.y,
+                                                pos.width,
+                                                pos.height
+                                            );
+                                        }
+                                    } catch (err) {
+                                        console.error("Error rendering character:", err);
+                                    }
+                                };
+
+                                renderCharacter();
+                            }}
+                            className="absolute inset-0 w-full h-full"
+                            style={{ imageRendering: 'crisp-edges' }}
+                        />
 
                         {nodes.every(n => !n.data.traits?.some((t: any) => t.imageUrl)) && (
                             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm font-mono px-8 text-center bg-black/40">
@@ -402,7 +601,7 @@ export const ManageLayers = () => {
                         <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
                             <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Composite Order</span>
                             <div className="flex gap-1 mt-1">
-                                {nodes.sort((a, b) => a.position.y - b.position.y).map((n, i) => (
+                                {nodes.sort((a, b) => getLayerDepth(a, nodes) - getLayerDepth(b, nodes)).map((n, i) => (
                                     <div key={n.id} className="w-2 h-2 rounded-full bg-primary" style={{ opacity: (i + 1) / nodes.length }} />
                                 ))}
                             </div>

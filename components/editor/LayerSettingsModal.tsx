@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Eye, EyeOff } from "lucide-react";
+import { X, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -15,20 +15,28 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [parentLayer, setParentLayer] = useState("");
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [position, setPosition] = useState({ x: 0, y: 0, width: 1024, height: 1024 });
     const [rarity, setRarity] = useState(100);
     const [isVisible, setIsVisible] = useState(true);
     const [activeTab, setActiveTab] = useState<'assets' | 'rules'>('assets');
     const [traits, setTraits] = useState<any[]>([]);
+    const [aiPrompt, setAiPrompt] = useState("");
+    const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
         if (layerData) {
             setName(layerData.label || "");
             setDescription(layerData.description || "");
             setParentLayer(layerData.parentLayer || "");
-            setPosition(layerData.position || { x: 0, y: 0 });
+            setPosition({
+                x: layerData.position?.x ?? 0,
+                y: layerData.position?.y ?? 0,
+                width: layerData.position?.width ?? 1024,
+                height: layerData.position?.height ?? 1024
+            });
             setRarity(layerData.rarity ?? 100);
             setTraits(layerData.traits || []);
+            setAiPrompt(layerData.aiPrompt || "");
         }
     }, [layerData]);
 
@@ -40,9 +48,42 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
             parentLayer: parentLayer || undefined,
             position,
             rarity,
+            aiPrompt,
             traits
         });
         onClose();
+    };
+
+    const handleGenerateTrait = async () => {
+        if (!aiPrompt || isGenerating) return;
+
+        setIsGenerating(true);
+        try {
+            const response = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: aiPrompt })
+            });
+
+            if (!response.ok) throw new Error('Generation failed');
+
+            const { url } = await response.json();
+
+            // Add new trait
+            const newTrait = {
+                name: name || 'New Trait',
+                rarity: 100,
+                imageUrl: url,
+                aiPrompt: aiPrompt
+            };
+
+            setTraits(prev => [...prev, newTrait]);
+            console.log('✅ Trait generated successfully');
+        } catch (error) {
+            console.error('❌ Generation failed:', error);
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const updateTraitRarity = (index: number, newRarity: number) => {
@@ -120,7 +161,7 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Position X</label>
                                     <input
@@ -136,6 +177,24 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                         type="number"
                                         value={position.y}
                                         onChange={(e) => setPosition({ ...position, y: parseInt(e.target.value) || 0 })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Width</label>
+                                    <input
+                                        type="number"
+                                        value={position.width}
+                                        onChange={(e) => setPosition({ ...position, width: parseInt(e.target.value) || 0 })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Height</label>
+                                    <input
+                                        type="number"
+                                        value={position.height}
+                                        onChange={(e) => setPosition({ ...position, height: parseInt(e.target.value) || 0 })}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none transition-all"
                                     />
                                 </div>
