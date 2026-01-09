@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
-import { Copy, Menu, Sparkles, LayoutGrid, Layers, Settings } from "lucide-react";
+import { Copy, Menu, Sparkles, LayoutGrid, Layers, Settings, Globe } from "lucide-react";
 import { WalletDisplay } from "@/components/wallet/WalletDisplay";
 
 export const Navbar = () => {
@@ -28,6 +28,9 @@ export const Navbar = () => {
                     </Link>
                     <Link href="/collections" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
                         <Layers className="w-4 h-4" /> Collections
+                    </Link>
+                    <Link href="/explore" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                        <Globe className="w-4 h-4" /> Explore
                     </Link>
                     <Link href="/my-nfts" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
                         <LayoutGrid className="w-4 h-4" /> My NFTs

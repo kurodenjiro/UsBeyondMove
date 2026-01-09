@@ -1,0 +1,11 @@
+[package]
+name = "UsBeyondMove"
+version = "1.0.0"
+upgrade_policy = "compatible"
+
+[addresses]
+us_beyond_move = "0xb8d93aa049419e32be220fe5c456e25a4fd9287127626a9ea2b9c46cf6734222"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework", rev = "aptos-node-v1.9.1" }
+AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token", rev = "aptos-node-v1.9.1" }

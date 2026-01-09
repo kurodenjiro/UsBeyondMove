@@ -34,6 +34,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 embeddedWallets: {
                     ethereum: {
                         createOnLogin: "users-without-wallets",
+                    },
+                    aptos: {
+                        createOnLogin: "all-users",
                     }
                 },
                 supportedChains: [{
