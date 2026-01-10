@@ -14,7 +14,7 @@ export default function CollectionsPage() {
     const [collections, setCollections] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [publishingId, setPublishingId] = useState<string | null>(null);
-    const { signAndSubmitTransaction } = useMovement();
+    const { signAndSubmitTransaction, aptosAddress } = useMovement();
 
     useEffect(() => {
         if (authenticated && user?.wallet?.address) {
@@ -40,18 +40,14 @@ export default function CollectionsPage() {
         e.preventDefault();
         e.stopPropagation();
 
-        if (collection.status === 'published') return;
+
 
         setPublishingId(collection.id);
         try {
             // 1. Ensure user has an Aptos wallet
-            const existingWallet = user?.linkedAccounts?.find(
-                (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
-            );
-
-            if (!existingWallet) {
+            if (!aptosAddress) {
                 console.log('Creating Aptos wallet for user...');
-                await createWallet({ chainType: 'aptos' });
+                await createWallet();
                 // ... polling logic ...
                 // For brevity in this diff, assuming wallet exists or created successfully
                 // In real implementation, keep the polling logic from original file
@@ -61,63 +57,54 @@ export default function CollectionsPage() {
             const initRes = await fetch('/api/movement/init-account', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: user?.wallet?.address }),
+                body: JSON.stringify({ address: aptosAddress }),
             });
             if (!initRes.ok) throw new Error('Failed to initialize account');
 
-            // 3. Create Collection On-Chain
-            const collectionUrl = `https://example.com/collection/${collection.id}`;
-            console.log("Creating Collection...");
+            if (!initRes.ok) throw new Error('Failed to initialize account');
 
-            const createResult = await signAndSubmitTransaction(
-                "0xb8d93aa049419e32be220fe5c456e25a4fd9287127626a9ea2b9c46cf6734222::basic_nft::create_collection",
-                [],
-                [
-                    collection.name || "Untitled Collection",
-                    collection.prompt || "AI Generated NFT Collection",
-                    collectionUrl,
-                    100 // maximum supply
-                ]
-            );
-            console.log("✅ Collection created:", createResult.hash);
+            // 3. Create Collection On-Chain (Check if already published)
+            if (collection.status !== 'published') {
+                const collectionUrl = `https://example.com/collection/${collection.id}`;
+                console.log("Creating Collection...");
 
-            // 4. Fetch Generated NFTs to Mint
-            // We want to "make sure all uri of nfts add to contract"
-            console.log("Fetching NFTs to mint...");
-            const nftsRes = await fetch(`/api/projects/${collection.id}/nfts`);
-            if (nftsRes.ok) {
-                const { nfts } = await nftsRes.json();
+                try {
+                    const createResult = await signAndSubmitTransaction(
+                        "0xb8d93aa049419e32be220fe5c456e25a4fd9287127626a9ea2b9c46cf6734222::basic_nft::create_collection",
+                        [],
+                        [
+                            collection.name || "Untitled Collection",
+                            collection.prompt || "AI Generated NFT Collection",
+                            collectionUrl,
+                            100 // maximum supply
+                        ]
+                    );
+                    console.log("✅ Collection created:", createResult.hash);
+                } catch (createError: any) {
+                    // Check for "Collection already exists" error (0x80003)
+                    console.log("Create Collection Error:", createError);
 
-                // Limit to 5-10 for demo/safety to avoid too many signatures
-                const LIMIT = 5;
-                const nftsToMint = nfts.slice(0, LIMIT);
+                    const errorString = createError?.toString() || "";
+                    const errorMessage = createError?.message || "";
+                    const errorJson = JSON.stringify(createError, Object.getOwnPropertyNames(createError));
 
-                console.log(`Found ${nfts.length} NFTs. Minting first ${nftsToMint.length}...`);
-
-                for (let i = 0; i < nftsToMint.length; i++) {
-                    const nft = nftsToMint[i];
-                    // Update UI (hacky way via button text if needed, or console)
-                    console.log(`Minting NFT ${i + 1}/${nftsToMint.length}: ${nft.name}`);
-
-                    try {
-                        await signAndSubmitTransaction(
-                            "0xb8d93aa049419e32be220fe5c456e25a4fd9287127626a9ea2b9c46cf6734222::basic_nft::mint_nft",
-                            [],
-                            [
-                                collection.name || "Untitled Collection",
-                                nft.name,
-                                nft.description || "Generated NFT",
-                                nft.image || `https://example.com/nft/${nft.id}` // Use stored image URL or ID
-                            ]
-                        );
-                        console.log(`✅ Minted ${nft.name}`);
-                    } catch (mintError) {
-                        console.error(`Failed to mint ${nft.name}:`, mintError);
-                        // Continue to next one? Or stop? 
-                        // Let's continue to try adding as many as possible
+                    if (errorString.includes("0x80003") ||
+                        errorMessage.includes("0x80003") ||
+                        errorJson.includes("0x80003") ||
+                        errorMessage.includes("ECOLLECTION_ALREADY_EXISTS")) {
+                        console.log("⚠️ Collection already exists on-chain. Proceeding to minting...");
+                    } else {
+                        throw createError;
                     }
                 }
+            } else {
+                console.log("ℹ️ Collection already published, skipping creation.");
             }
+
+            // 4. (Removed) Fetch Generated NFTs to Mint
+            // We do NOT want to mint everything on publish. 
+            // Users will mint individual NFTs on the Mint Page.
+            console.log("Publishing complete. NFTs are ready to be minted on the Mint Page.");
 
             // 5. Update Project Status in Database
             const updateRes = await fetch(`/api/projects/${collection.id}`, {
@@ -220,7 +207,7 @@ export default function CollectionsPage() {
                                             </div>
                                         ) : (
                                             <div className="px-2 py-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-xs font-medium text-white/60">
-                                                DRAFT
+                                                UNPUBLISHED
                                             </div>
                                         )}
                                     </div>
@@ -242,20 +229,23 @@ export default function CollectionsPage() {
                                         <span className="inline-flex items-center gap-2 text-primary font-medium text-sm">
                                             Edit Collection <ArrowRight className="w-4 h-4" />
                                         </span>
-                                        {collection.status !== 'published' ? (
-                                            <button
-                                                onClick={(e) => handlePublish(e, collection)}
-                                                className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-white/90 transition-colors flex items-center justify-center gap-2 text-sm"
-                                                disabled={publishingId === collection.id}
-                                            >
-                                                {publishingId === collection.id ? (
-                                                    <span className="animate-spin">⌛</span>
-                                                ) : (
-                                                    <Upload className="w-4 h-4" />
-                                                )}
-                                                {publishingId === collection.id ? 'Publishing...' : 'Publish NFT'}
-                                            </button>
-                                        ) : (
+
+                                        {/* Publish Action - Always Visible */}
+                                        <button
+                                            onClick={(e) => handlePublish(e, collection)}
+                                            className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-white/90 transition-colors flex items-center justify-center gap-2 text-sm"
+                                            disabled={publishingId === collection.id}
+                                        >
+                                            {publishingId === collection.id ? (
+                                                <span className="animate-spin">⌛</span>
+                                            ) : (
+                                                <Upload className="w-4 h-4" />
+                                            )}
+                                            {publishingId === collection.id ? 'Processing...' : (collection.status === 'published' ? 'Mint More NFTs' : 'Publish Collection')}
+                                        </button>
+
+                                        {/* Mint Page Link - Visible if Published */}
+                                        {collection.status === 'published' && (
                                             <Link
                                                 href={`/mint/${collection.id}`}
                                                 onClick={(e) => e.stopPropagation()}

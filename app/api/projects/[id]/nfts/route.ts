@@ -9,8 +9,16 @@ export async function GET(
         const { id } = await params;
         const projectId = id;
 
+        const { searchParams } = new URL(req.url);
+        const status = searchParams.get('status');
+
+        const where: any = { projectId: projectId };
+        if (status) {
+            where.mintStatus = status;
+        }
+
         const nfts = await prisma.nft.findMany({
-            where: { projectId: projectId },
+            where: where,
             orderBy: { name: 'asc' } // Simple ordering, or custom numeric sort
         });
 

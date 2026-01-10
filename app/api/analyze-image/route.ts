@@ -92,7 +92,7 @@ Analyze the image and extract the layer structure with multiple trait variations
                     }
                 ]
             },
-            generationConfig: {
+            config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: "object",
@@ -138,7 +138,7 @@ Analyze the image and extract the layer structure with multiple trait variations
             }
         });
 
-        let analysisText = response.candidates[0].content.parts[0].text || "{}";
+        let analysisText = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
         // Strip markdown code blocks if present
         analysisText = analysisText.replace(/^```json\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();

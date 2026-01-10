@@ -2,12 +2,18 @@ module us_beyond_move::basic_nft {
     use std::string::{Self, String};
     use std::signer;
     use aptos_token::token;
+    use aptos_std::table::{Self, Table};
+
+    const ENOT_AUTHORIZED: u64 = 1;
+    const EALREADY_MINTED: u64 = 2;
 
     struct ModuleData has key {
         token_data_id: token::TokenDataId,
     }
 
-    const ENOT_AUTHORIZED: u64 = 1;
+    struct MintedRegistry has key {
+        minted_names: Table<String, bool>,
+    }
 
     public entry fun create_collection(
         sender: &signer,
@@ -32,13 +38,34 @@ module us_beyond_move::basic_nft {
         name: String,
         description: String,
         uri: String,
-    ) {
+    ) acquires MintedRegistry {
+        let sender_addr = signer::address_of(sender);
+
+        // 1. Initialize Registry if not exists
+        if (!exists<MintedRegistry>(sender_addr)) {
+            move_to(sender, MintedRegistry {
+                minted_names: table::new()
+            });
+        };
+
+        // 2. Check Uniqueness
+        let registry = borrow_global_mut<MintedRegistry>(sender_addr);
+        
+        // Create a unique key for the registry: collection + name
+        let key = copy collection_name;
+        string::append(&mut key, string::utf8(b"::"));
+        string::append(&mut key, copy name);
+
+        assert!(!table::contains(&registry.minted_names, key), EALREADY_MINTED);
+        table::add(&mut registry.minted_names, key, true);
+
+        // 3. Create Token Data & Mint
         let token_data_id = token::create_tokendata(
             sender,
             collection_name,
             name,
             description,
-            0, // maximum for this token data
+            1, // STRICT LIMIT: Maximum 1 of this NFT
             uri,
             @us_beyond_move, // royalty payee address
             0, // royalty points denominator

@@ -32,12 +32,14 @@ export async function POST(req: Request) {
         // Extract image data from response (following official example)
         let imageData: string | null = null;
 
-        for (const part of response.candidates[0].content.parts) {
+        const parts = response.candidates?.[0]?.content?.parts || [];
+
+        for (const part of parts) {
             if (part.text) {
                 console.log("Text response:", part.text);
             }
             if (part.inlineData) {
-                imageData = part.inlineData.data;
+                imageData = part.inlineData.data || null;
                 console.log("✅ Found image data in response");
             }
         }

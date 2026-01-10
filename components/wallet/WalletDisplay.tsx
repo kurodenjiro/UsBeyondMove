@@ -23,7 +23,7 @@ export const WalletDisplay = () => {
         const aptosWallet = user?.linkedAccounts?.find(
             (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
         );
-        const address = aptosWallet?.address || user?.wallet?.address;
+        const address = (aptosWallet as any)?.address || user?.wallet?.address;
 
         if (address) {
             navigator.clipboard.writeText(address);
@@ -36,7 +36,7 @@ export const WalletDisplay = () => {
     const aptosWallet = user?.linkedAccounts?.find(
         (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
     );
-    const walletAddress = aptosWallet?.address || user?.wallet?.address;
+    const walletAddress = (aptosWallet as any)?.address || user?.wallet?.address;
 
     if (!authenticated || !walletAddress) return null;
 

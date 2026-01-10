@@ -179,11 +179,14 @@ export default function CollectionDetailPage() {
                                             )}
                                         </div>
                                     )}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                    <Link
+                                        href={`/nft/${nft.id}`}
+                                        className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4"
+                                    >
                                         <button className="w-full py-2 bg-white text-black text-xs font-bold rounded">
                                             View Details
                                         </button>
-                                    </div>
+                                    </Link>
                                 </div>
                                 <div className="p-3">
                                     <h3 className="font-bold text-sm truncate">{nft.name}</h3>

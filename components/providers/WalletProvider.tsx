@@ -35,9 +35,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                     ethereum: {
                         createOnLogin: "users-without-wallets",
                     },
-                    aptos: {
-                        createOnLogin: "all-users",
-                    }
+
                 },
                 supportedChains: [{
                     id: 30732,

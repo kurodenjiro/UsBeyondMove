@@ -13,7 +13,7 @@ export async function GET(req: Request) {
         const collections = await prisma.project.findMany({
             where: {
                 ownerAddress,
-                status: 'saved' // Only fetch saved collections
+                status: { in: ['saved', 'published'] }
             },
             orderBy: {
                 updatedAt: 'desc'

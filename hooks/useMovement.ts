@@ -40,14 +40,14 @@ export function useMovement() {
                 throw new Error('No Aptos wallet found. Please create one first.');
             }
 
-            const walletAddress = aptosAccount.address;
+            const walletAddress = (aptosAccount as any).address;
             console.log('[Privy Transaction] Using Aptos wallet:', walletAddress);
 
             // Build the transaction
             const rawTxn = await aptos.transaction.build.simple({
                 sender: walletAddress,
                 data: {
-                    function: func,
+                    function: func as `${string}::${string}::${string}`,
                     typeArguments,
                     functionArguments,
                 },
@@ -57,7 +57,7 @@ export function useMovement() {
 
             // Generate signing message
             const message = generateSigningMessageForTransaction(rawTxn);
-            const hash = `0x${toHex(message)}`;
+            const hash = `0x${toHex(message)}` as `0x${string}`;
 
             console.log('[Privy Transaction] Signing with Privy...');
 
@@ -119,8 +119,8 @@ export function useMovement() {
 
     return {
         signAndSubmitTransaction,
-        aptosAddress: user?.linkedAccounts?.find(
+        aptosAddress: (user?.linkedAccounts?.find(
             (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
-        )?.address,
+        ) as any)?.address,
     };
 }

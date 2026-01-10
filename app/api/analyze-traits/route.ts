@@ -102,7 +102,7 @@ Return JSON array with one entry per image in the same order.`;
                     ...imageParts
                 ]
             },
-            generationConfig: {
+            config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: "object",
@@ -114,20 +114,8 @@ Return JSON array with one entry per image in the same order.`;
                                 properties: {
                                     name: { type: "string" },
                                     description: { type: "string" },
-                                    category: {
-                                        type: "string",
-                                        enum: ['Background', 'Body', 'Head', 'Other']
-                                    },
-                                    position: {
-                                        type: "object",
-                                        properties: {
-                                            x: { type: "number" },
-                                            y: { type: "number" },
-                                            width: { type: "number" },
-                                            height: { type: "number" }
-                                        },
-                                        required: ["x", "y", "width", "height"]
-                                    },
+                                    category: { type: "string", enum: ["Background", "Body", "Head", "Other"] },
+                                    rarity: { type: "number" },
                                     anchorPoints: {
                                         type: "object",
                                         properties: {
@@ -137,10 +125,9 @@ Return JSON array with one entry per image in the same order.`;
                                             right: { type: "boolean" }
                                         },
                                         required: ["top", "bottom", "left", "right"]
-                                    },
-                                    rarity: { type: "number" }
+                                    }
                                 },
-                                required: ["name", "description", "category", "position", "anchorPoints", "rarity"]
+                                required: ["name", "description", "category", "rarity", "anchorPoints"]
                             }
                         }
                     },
@@ -149,7 +136,7 @@ Return JSON array with one entry per image in the same order.`;
             }
         });
 
-        const resultText = response.candidates[0].content.parts[0].text || "{}";
+        const resultText = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
         console.log('📝 Raw response text:', resultText.substring(0, 200));
 
         const cleanedText = resultText.replace(/^```json\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();

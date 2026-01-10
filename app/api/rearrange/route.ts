@@ -78,7 +78,7 @@ Return JSON with this structure:
                     }
                 ]
             },
-            generationConfig: {
+            config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: "object",
@@ -110,7 +110,7 @@ Return JSON with this structure:
             }
         });
 
-        const resultText = response.candidates[0].content.parts[0].text || "{}";
+        const resultText = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
         // Strip markdown if present
         const cleanedText = resultText.replace(/^```json\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
