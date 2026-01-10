@@ -12,8 +12,10 @@ import {
 
 const config = new AptosConfig({
     network: Network.CUSTOM,
-    fullnode: "https://testnet.movementnetwork.xyz/v1"
+    fullnode: process.env.NEXT_PUBLIC_MOVEMENT_RPC_URL || "https://testnet.movementnetwork.xyz/v1"
 });
+
+
 const aptos = new Aptos(config);
 
 // Helper to convert Uint8Array to hex
@@ -94,7 +96,7 @@ export function useMovement() {
             });
 
             console.log('[Privy Transaction] Transaction submitted:', committedTransaction.hash);
-            console.log(`🔗 Explorer Link: https://explorer.movementnetwork.xyz/txn/${committedTransaction.hash}?network=testnet`);
+            console.log(`🔗 Explorer Link: https://explorer.movementnetwork.xyz/txn/${committedTransaction.hash}?network=bardock+testnet`);
 
             // Debug Public Key
             if (!(aptosAccount as any).publicKey) {

@@ -10,33 +10,65 @@ export const WalletDisplay = () => {
     const [balance, setBalance] = useState("0.00");
     const [isCopied, setIsCopied] = useState(false);
 
-    // Mock balance fetching for demo (or use useWallets if detailed)
-    useEffect(() => {
-        if (authenticated) {
-            // Simulate fetching balance
-            // Real fetch would be: const bal = await provider.getBalance(address);
-            setTimeout(() => setBalance("12.50"), 1000);
-        }
-    }, [authenticated]);
-
-    const handleCopy = () => {
-        const aptosWallet = user?.linkedAccounts?.find(
-            (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
-        );
-        const address = (aptosWallet as any)?.address || user?.wallet?.address;
-
-        if (address) {
-            navigator.clipboard.writeText(address);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-        }
-    };
-
     // Get Movement (Aptos) wallet address
     const aptosWallet = user?.linkedAccounts?.find(
         (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
     );
     const walletAddress = (aptosWallet as any)?.address || user?.wallet?.address;
+
+    // Mock balance fetching for demo (or use useWallets if detailed)
+    useEffect(() => {
+        const fetchBalance = async () => {
+            if (authenticated && walletAddress) {
+                try {
+                    const rpcUrl = process.env.NEXT_PUBLIC_MOVEMENT_RPC_URL || "https://testnet.movementnetwork.xyz/v1";
+                    console.log(`[WalletDisplay] Fetching balance for ${walletAddress}`);
+                    console.log(`[WalletDisplay] Using RPC: ${rpcUrl}`);
+
+                    // Initialize Aptos Client (Movement Testnet)
+                    const { Aptos, AptosConfig, Network } = await import("@aptos-labs/ts-sdk");
+                    const config = new AptosConfig({
+                        network: Network.CUSTOM,
+                        fullnode: rpcUrl
+                    });
+                    const aptos = new Aptos(config);
+
+                    const resource = await aptos.getAccountResource({
+                        accountAddress: walletAddress,
+                        resourceType: "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>"
+                    });
+
+                    console.log(`[WalletDisplay] Resource fetched:`, resource);
+
+                    // Safe access
+                    const data = (resource as any).data || (resource as any); // Fallback if structure differs
+                    const coin = data?.coin;
+
+                    if (coin && coin.value) {
+                        const formatted = (Number(coin.value) / 100_000_000).toFixed(4);
+                        setBalance(formatted);
+                    } else {
+                        console.warn("[WalletDisplay] Coin data not found in resource");
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch balance:", e);
+                    // Keep 0.00 if failed (or loading state)
+                }
+            }
+        };
+
+        fetchBalance();
+        const interval = setInterval(fetchBalance, 5000); // Poll every 5s for updates
+        return () => clearInterval(interval);
+    }, [authenticated, walletAddress]);
+
+    const handleCopy = () => {
+        if (walletAddress) {
+            navigator.clipboard.writeText(walletAddress);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }
+    };
 
     if (!authenticated || !walletAddress) return null;
 
