@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, ArrowRight, Layers, Upload, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMovement } from "@/hooks/useMovement";
 
 export default function CollectionsPage() {
+    const router = useRouter();
     const { user, authenticated } = usePrivy();
     const { wallets } = useWallets();
     const { createWallet } = useCreateWallet();
@@ -196,7 +198,10 @@ export default function CollectionsPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
                         >
-                            <Link href={`/collections/${collection.id}`} className="group block h-full">
+                            <div
+                                onClick={() => router.push(`/collections/${collection.id}`)}
+                                className="group block h-full cursor-pointer"
+                            >
                                 <div className="relative aspect-square rounded-xl bg-white/5 border border-white/10 overflow-hidden mb-3 group-hover:border-primary/50 transition-colors">
                                     {/* Status Badge */}
                                     <div className="absolute top-3 right-3 z-10">
@@ -265,7 +270,7 @@ export default function CollectionsPage() {
                                         Last updated {new Date(collection.updatedAt).toLocaleDateString()}
                                     </p>
                                 </div>
-                            </Link>
+                            </div>
                         </motion.div>
                     ))}
                 </div>

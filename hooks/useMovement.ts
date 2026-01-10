@@ -94,6 +94,12 @@ export function useMovement() {
             });
 
             console.log('[Privy Transaction] Transaction submitted:', committedTransaction.hash);
+            console.log(`🔗 Explorer Link: https://explorer.movementnetwork.xyz/txn/${committedTransaction.hash}?network=testnet`);
+
+            // Debug Public Key
+            if (!(aptosAccount as any).publicKey) {
+                console.warn("⚠️ WARNING: Public Key not found in Privy account. Using wallet address as fallback.");
+            }
 
             // Wait for confirmation
             const executed = await aptos.waitForTransaction({
