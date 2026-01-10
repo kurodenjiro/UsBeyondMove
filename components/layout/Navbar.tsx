@@ -13,11 +13,11 @@ export const Navbar = () => {
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 group">
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/50 group-hover:shadow-[0_0_15px_rgba(0,245,255,0.5)] transition-all">
-                        <Sparkles className="w-5 h-5 text-primary" />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:shadow-[0_0_15px_rgba(0,245,255,0.5)] transition-all overflow-hidden bg-white">
+                        <img src="/logo.png" alt="BeyondUs Logo" className="w-full h-full object-cover" />
                     </div>
                     <span className="font-bold text-xl tracking-tight">
-                        AI <span className="text-primary">NFT</span>
+                        Beyond<span className="text-primary">Us</span>
                     </span>
                 </Link>
 

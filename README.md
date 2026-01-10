@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BeyondUs: The AI-Native NFT Foundry on Movement
 
-## Getting Started
+![BeyondUs](/logo.png)
 
-First, run the development server:
+**BeyondUs** is a next-generation NFT creation platform that democratizes onchain asset creation by merging advanced Generative AI with the high-throughput Movement Network. We allow anyone—regardless of artistic ability—to turn a single image or text prompt into a fully deployed, immutable NFT collection in minutes.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **AI-Powered Analysis**: Upload a single image, and our integration with **Google Gemini Vision** deconstructs it into traits and styles.
+- **Generative Synthesis**: Create consistent variations and sprite sheets using custom diffusion pipelines.
+- **Layer Editor**: Drag-and-drop interface to fine-tune assets and layers.
+- **One-Click Minting**: Auto-deploy smart contracts and mint tokens directly to the **Movement Network**.
+- **x402 Compliance**: Built-in "Pay-for-Compute" using the x402 standard to ensure sustainable AI usage.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠 Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **AI Layer**: Google Gemini 1.5 Pro Vision, Custom Diffusion Models.
+- **Blockchain**: Movement Network (Aptos Move VM).
+- **Authentication**: Privy (Embedded Wallets, Social Login).
+- **Storage**: IPFS, Prisma/Postgres.
+- **Framework**: Next.js 14, Tailwind CSS.
 
-## Learn More
+## 💰 Revenue Model
 
-To learn more about Next.js, take a look at the following resources:
+BeyondUs implements a circular economic model on the Movement blockchain:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1.  **"Pay-per-Forge"**: Micro-transactions (in MOVE) for AI generation, verifying payment via `X-Payment-Hash`.
+2.  **Launchpad Fees**: 2.5% commission on primary sales of deployed collections.
+3.  **Royalties**: 5% secondary sales royalty (split 4% Creator / 1% Protocol).
+4.  **Enterprise SaaS**: Subscriptions for advanced tooling and white-glove support.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+> *By enabling users to fund AI compute costs directly from NFT sale proceeds, we establish a circular economic model on the Movement blockchain.*
 
-## Deploy on Vercel
+## 💳 Why x402?
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Atomic Access**: Cryptographic proof of payment required for AI execution.
+- **Sybil Resistance**: Cost-based protection against spam and bots.
+- **Agentic Standards**: Ready for autonomous AI agents to negotiate resources.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔐 Why Privy?
+
+- **Invisible Web3**: Email/Social login for mass adoption.
+- **Embedded Wallets**: Secure, self-custodial wallets automatically generated.
+- **Seamless Signing**: No popup fatigue—keep users in the creative flow.
+
+## 📦 Getting Started
+
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/kurodenjiro/UsBeyondMove.git
+    cd UsBeyondMove
+    ```
+
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+
+3.  Set up environment variables:
+    ```bash
+    cp .env.example .env
+    # Fill in your GEMINI_API_KEY, PRIVY_APP_ID, etc.
+    ```
+
+4.  Run the development server:
+    ```bash
+    npm run dev
+    ```
+
+5.  Open [http://localhost:3000](http://localhost:3000) to start forging!
