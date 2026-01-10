@@ -503,6 +503,7 @@ export const ManageLayers = () => {
         try {
             setIsSavingCollection(true);
 
+            // 1. Save Project Details
             const response = await fetch(`/api/projects/${projectId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -514,6 +515,19 @@ export const ManageLayers = () => {
             });
 
             if (!response.ok) throw new Error("Failed to save collection");
+
+            // 2. Trigger NFT Generation
+            console.log("Triggering NFT generation...");
+            const genResponse = await fetch(`/api/projects/${projectId}/generate`, {
+                method: 'POST'
+            });
+
+            if (!genResponse.ok) {
+                console.warn("NFT generation failed, but collection saved.");
+            } else {
+                const genData = await genResponse.json();
+                console.log(`✅ Generated ${genData.count} NFTs`);
+            }
 
             // alert("✅ Collection saved successfully! You can view it in the Collections page.");
             setIsSaveModalOpen(false);

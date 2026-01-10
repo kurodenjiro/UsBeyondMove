@@ -135,4 +135,20 @@ model Project {
   status          String    @default("draft") // draft, saved, published
   ipfsHash        String?
   contractAddress String?
+  nfts            Nft[]
+}
+
+model Nft {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  image       String?  // URL or Base64
+  attributes  Json     // Array of traits { trait_type, value }
+  rarityScore Float?
+  mintStatus  String   @default("pending") // pending, minted
+  txHash      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

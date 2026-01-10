@@ -20,16 +20,27 @@ export const WalletDisplay = () => {
     }, [authenticated]);
 
     const handleCopy = () => {
-        if (user?.wallet?.address) {
-            navigator.clipboard.writeText(user.wallet.address);
+        const aptosWallet = user?.linkedAccounts?.find(
+            (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
+        );
+        const address = aptosWallet?.address || user?.wallet?.address;
+
+        if (address) {
+            navigator.clipboard.writeText(address);
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
         }
     };
 
-    if (!authenticated || !user?.wallet?.address) return null;
+    // Get Movement (Aptos) wallet address
+    const aptosWallet = user?.linkedAccounts?.find(
+        (account: any) => account.type === 'wallet' && account.chainType === 'aptos'
+    );
+    const walletAddress = aptosWallet?.address || user?.wallet?.address;
 
-    const shortAddress = `${user.wallet.address.slice(0, 4)}...${user.wallet.address.slice(-4)}`;
+    if (!authenticated || !walletAddress) return null;
+
+    const shortAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
 
     return (
         <div className="flex items-center gap-2 pl-4 pr-1 py-1 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all select-none">

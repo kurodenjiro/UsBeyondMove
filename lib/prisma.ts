@@ -16,4 +16,8 @@ export const prisma =
         log: ['query'],
     });
 
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Force HMR update due to schema change
+console.log("Prisma Client Initialized (HMR Trigger)");
