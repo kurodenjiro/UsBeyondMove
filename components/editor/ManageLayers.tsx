@@ -20,10 +20,10 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { cn } from '@/lib/utils';
-import { Settings, Image as ImageIcon, Trash2, Dices, Move, Sparkles } from 'lucide-react';
+import { Settings, Image as ImageIcon, Trash2, Dices, Move, Sparkles, Plus } from 'lucide-react';
 
 // Custom Node Component
-const CustomLayerNode = ({ data }: { data: { label: string, traits: any[], onSettings: () => void } }) => {
+const CustomLayerNode = ({ data }: { data: { label: string, traits: any[], onSettings: () => void, onAddChild: () => void } }) => {
     return (
         <div
             onClick={data.onSettings}
@@ -45,8 +45,17 @@ const CustomLayerNode = ({ data }: { data: { label: string, traits: any[], onSet
                 ))}
             </div>
 
-            <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-secondary !border-2 !border-background" />
-        </div>
+            <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-secondary !border-2 !border-background opacity-0 group-hover:opacity-100 transition-opacity" />
+
+            {/* Add Child Button on Right Edge */}
+            <button
+                onClick={(e) => { e.stopPropagation(); data.onAddChild(); }}
+                className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-secondary text-black rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-[0_0_10px_rgba(0,245,255,0.3)] z-50"
+                title="Add Child Layer"
+            >
+                <Plus className="w-3 h-3" />
+            </button>
+        </div >
     );
 };
 
@@ -321,6 +330,43 @@ export const ManageLayers = () => {
         }
     };
 
+    const handleAddChild = (parentNodeId: string) => {
+        const parentNode = nodes.find(n => n.id === parentNodeId);
+        if (!parentNode) return;
+
+        const newNodeId = `layer-${Date.now()}`;
+        // Position to the right and slightly down to avoid direct overlap if usually grid based
+        const newPosition = { x: parentNode.position.x + 350, y: parentNode.position.y };
+
+        const newNode: Node = {
+            id: newNodeId,
+            type: 'customLayer',
+            position: newPosition,
+            data: {
+                label: 'New Layer',
+                traits: [],
+                parentLayer: parentNode.data.label,
+                rarity: 100,
+                position: { x: 0, y: 0, width: 1024, height: 1024 }
+            }
+        };
+
+        const newEdge: Edge = {
+            id: `e-${parentNodeId}-${newNodeId}`,
+            source: parentNodeId,
+            target: newNodeId,
+            animated: true,
+            style: { stroke: '#00F5FF' }
+        };
+
+        const updatedNodes = [...nodes, newNode];
+        const updatedEdges = [...edges, newEdge];
+
+        setNodes(updatedNodes);
+        setEdges(updatedEdges);
+        handleSaveProject(updatedNodes, updatedEdges);
+    };
+
     const handleSaveSettings = (updatedData: any) => {
         // Update the node data and edges in a single pass if possible, or trigger sequentially correctly
         setNodes((nds) => {
@@ -357,7 +403,7 @@ export const ManageLayers = () => {
                             target: node.id,
                             animated: true,
                             style: { stroke: '#00F5FF' },
-                            label: 'child of'
+                            style: { stroke: '#00F5FF' },
                         });
                     }
                 }
@@ -452,7 +498,6 @@ export const ManageLayers = () => {
                                     target: `ai-${index}`,
                                     animated: true,
                                     style: { stroke: '#00F5FF' },
-                                    label: 'child of'
                                 });
                             }
                         }
@@ -553,7 +598,8 @@ export const ManageLayers = () => {
                         ...n,
                         data: {
                             ...n.data,
-                            onSettings: () => handleSettingsClick(n.id, n.data)
+                            onSettings: () => handleSettingsClick(n.id, n.data),
+                            onAddChild: () => handleAddChild(n.id)
                         }
                     }))}
                     edges={edges}
@@ -607,14 +653,7 @@ export const ManageLayers = () => {
                             {isSavingCollection ? <span className="animate-spin mr-1">⏳</span> : <Sparkles className="w-4 h-4" />}
                             {isSavingCollection ? 'Saving...' : 'Save Collection'}
                         </button>
-                        <button
-                            onClick={handleRearrange}
-                            disabled={isRearranging}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Move className={`w-4 h-4 ${isRearranging ? 'animate-spin' : ''}`} />
-                            {isRearranging ? 'Rearranging...' : 'Rearrange Pos'}
-                        </button>
+
                         <button
                             onClick={handleRandomizeMix}
                             className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-primary text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,245,255,0.1)]"

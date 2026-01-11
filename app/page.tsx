@@ -163,7 +163,7 @@ export default function Home() {
       const { id } = await saveResponse.json();
 
       setStatus("Redirecting...");
-      router.push(`/nft-generate-editor?id=${id}`);
+      router.push(`/editor?id=${id}`);
 
     } catch (error: any) {
       console.error("Auto-Generate failed:", error);
@@ -285,7 +285,7 @@ export default function Home() {
       const { id } = await saveResponse.json();
 
       setStatus("Redirecting to Editor...");
-      router.push(`/nft-generate-editor?id=${id}`);
+      router.push(`/editor?id=${id}`);
 
     } catch (error: any) {
       console.error("Generation failed:", error);
@@ -370,10 +370,11 @@ export default function Home() {
                 ];
                 setPrompt(prompts[Math.floor(Math.random() * prompts.length)]);
               }}
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-muted-foreground hover:text-white"
+              className="p-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-muted-foreground hover:text-white flex items-center gap-2"
               title="Recommend a prompt"
             >
               <Sparkles className="w-5 h-5" />
+              <span className="hidden md:inline text-sm font-medium">Suggest</span>
             </button>
 
             <button
@@ -387,6 +388,7 @@ export default function Home() {
               ) : (
                 <Layers className="w-5 h-5" />
               )}
+              <span className="hidden sm:inline">Auto Plan</span>
             </button>
 
             <button

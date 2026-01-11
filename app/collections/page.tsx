@@ -206,7 +206,7 @@ export default function CollectionsPage() {
                                     {/* Status Badge */}
                                     <div className="absolute top-3 right-3 z-10">
                                         {collection.status === 'published' ? (
-                                            <div className="px-2 py-1 bg-green-500/20 backdrop-blur-md border border-green-500/30 rounded-full flex items-center gap-1.5 text-xs font-bold text-green-400">
+                                            <div className="px-2 py-1 bg-white/20 backdrop-blur-md border border-white/30 rounded-full flex items-center gap-1.5 text-xs font-bold text-white">
                                                 <CheckCircle className="w-3 h-3" />
                                                 PUBLISHED
                                             </div>
@@ -231,8 +231,8 @@ export default function CollectionsPage() {
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                                     <div className="absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all flex flex-col gap-2">
-                                        <span className="inline-flex items-center gap-2 text-primary font-medium text-sm">
-                                            Edit Collection <ArrowRight className="w-4 h-4" />
+                                        <span className="inline-flex items-center gap-2 text-white font-medium text-sm">
+                                            View Details <ArrowRight className="w-4 h-4" />
                                         </span>
 
                                         {/* Publish Action - Always Visible */}
@@ -254,7 +254,7 @@ export default function CollectionsPage() {
                                             <Link
                                                 href={`/mint/${collection.id}`}
                                                 onClick={(e) => e.stopPropagation()}
-                                                className="w-full py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition-colors flex items-center justify-center gap-2 text-sm"
+                                                className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-white/90 transition-colors flex items-center justify-center gap-2 text-sm"
                                             >
                                                 <Sparkles className="w-4 h-4" />
                                                 Mint Page

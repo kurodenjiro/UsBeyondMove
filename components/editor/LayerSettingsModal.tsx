@@ -142,7 +142,7 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                         className="flex items-center gap-2 px-3 py-3 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10"
                                         onClick={() => setIsVisible(!isVisible)}
                                     >
-                                        <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isVisible ? 'bg-green-500' : 'bg-gray-600'}`}>
+                                        <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isVisible ? 'bg-white' : 'bg-gray-600'}`}>
                                             <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${isVisible ? 'translate-x-4' : 'translate-x-0'}`} />
                                         </div>
                                         {isVisible ? <Eye className="w-4 h-4 text-muted-foreground" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
@@ -207,7 +207,7 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                 </div>
                                 <div className="h-6 bg-white/5 rounded-full p-1 relative">
                                     <div
-                                        className="h-full bg-blue-500/80 rounded-full relative"
+                                        className="h-full bg-white rounded-full relative"
                                         style={{ width: `${rarity}%` }}
                                     >
                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow cursor-pointer hover:scale-110 transition-transform" />
@@ -233,8 +233,8 @@ export const LayerSettingsModal = ({ isOpen, onClose, layerData, onSave, availab
                                     <option value="">None (Root Layer)</option>
                                     {availableLayers
                                         .filter(layerName => layerName !== name) // Exclude current layer
-                                        .map(layerName => (
-                                            <option key={layerName} value={layerName}>{layerName}</option>
+                                        .map((layerName, idx) => (
+                                            <option key={`${layerName}-${idx}`} value={layerName}>{layerName}</option>
                                         ))
                                     }
                                 </select>

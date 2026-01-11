@@ -13,7 +13,7 @@ export const Navbar = () => {
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 group">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:shadow-[0_0_15px_rgba(0,245,255,0.5)] transition-all overflow-hidden bg-white">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-all overflow-hidden bg-white">
                         <img src="/logo.png" alt="BeyondUs Logo" className="w-full h-full object-cover" />
                     </div>
                     <span className="font-bold text-xl tracking-tight">

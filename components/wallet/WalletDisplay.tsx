@@ -78,7 +78,7 @@ export const WalletDisplay = () => {
         <div className="flex items-center gap-2 pl-4 pr-1 py-1 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all select-none">
             {/* Balance Section */}
             <div className="flex items-center gap-2 mr-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
                 <span className="text-sm font-bold text-white tracking-tight">{balance} MOVE</span>
             </div>
 

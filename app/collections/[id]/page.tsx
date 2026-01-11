@@ -81,7 +81,7 @@ export default function CollectionDetailPage() {
                         <div>
                             <h1 className="text-3xl font-bold">{project.name}</h1>
                             <p className="text-muted-foreground flex items-center gap-2">
-                                <span className={project.status === 'published' ? "text-green-400" : "text-yellow-400 uppercase text-xs font-bold tracking-wider"}>
+                                <span className={project.status === 'published' ? "text-white" : "text-yellow-400 uppercase text-xs font-bold tracking-wider"}>
                                     {project.status || 'DRAFT'}
                                 </span>
                                 • {nfts.length} Items
@@ -90,14 +90,12 @@ export default function CollectionDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {project.status !== 'published' && (
-                            <Link
-                                href={`/editor?id=${project.id}`}
-                                className="px-4 py-2 bg-white/10 border border-white/10 rounded-lg hover:bg-white/20 transition-colors text-sm font-medium"
-                            >
-                                Edit Layers
-                            </Link>
-                        )}
+                        <Link
+                            href={`/editor?id=${project.id}`}
+                            className="px-4 py-2 bg-white/10 border border-white/10 rounded-lg hover:bg-white/20 transition-colors text-sm font-medium"
+                        >
+                            Edit Collection
+                        </Link>
                         <Link
                             href={`/mint/${project.id}`}
                             className="px-6 py-2 bg-primary text-black font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(0,245,255,0.3)] flex items-center gap-2"

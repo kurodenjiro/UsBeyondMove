@@ -131,7 +131,7 @@ export default function NftDetailPage() {
                         <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
                             <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Status</span>
                             <div className="flex items-center gap-2 mt-1">
-                                <div className={`w-2 h-2 rounded-full ${nft.mintStatus === 'minted' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                <div className={`w-2 h-2 rounded-full ${nft.mintStatus === 'minted' ? 'bg-white' : 'bg-yellow-500'}`} />
                                 <span className="font-semibold capitalize">{nft.mintStatus || 'Pending'}</span>
                             </div>
                         </div>

@@ -351,7 +351,7 @@ export default function MintPage() {
                     {minted && mintedNft ? (
                         // SUCCESS MESSAGE
                         <div className="space-y-6 text-center md:text-left">
-                            <h1 className="text-4xl font-bold text-green-400 mb-2">Mint Successful!</h1>
+                            <h1 className="text-4xl font-bold text-white mb-2">Mint Successful!</h1>
                             <p className="text-xl text-white">
                                 You are now the owner of <span className="text-primary font-bold">{mintedNft.name}</span>.
                             </p>
@@ -413,8 +413,8 @@ export default function MintPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                                    <p className="text-2xl font-bold text-green-400 font-mono flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                    <p className="text-2xl font-bold text-white font-mono flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                                         LIVE
                                     </p>
                                 </div>
