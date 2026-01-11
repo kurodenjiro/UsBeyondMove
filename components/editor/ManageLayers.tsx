@@ -403,7 +403,6 @@ export const ManageLayers = () => {
                             target: node.id,
                             animated: true,
                             style: { stroke: '#00F5FF' },
-                            style: { stroke: '#00F5FF' },
                         });
                     }
                 }
