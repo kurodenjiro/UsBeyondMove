@@ -668,7 +668,10 @@ export const ManageLayers = () => {
             }
 
             // Update preview and existing reference (add cache-buster)
-            setPreviewImage(`${savedNFT.image}?t=${Date.now()}`);
+            console.log("🖼️ Setting preview image:", savedNFT.image);
+            const imageUrl = `${savedNFT.image}?t=${Date.now()}`;
+            console.log("🖼️ Final image URL with cache-buster:", imageUrl);
+            setPreviewImage(imageUrl);
             setExistingNFT(savedNFT);
 
             console.log("🎉 Generate/Update complete!");
