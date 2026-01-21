@@ -2,6 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper to transform NFT for response
+const transformNft = (nft: any) => ({
+    ...nft,
+    image: `/api/nfts/${nft.id}/image`
+});
+
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -23,7 +29,12 @@ export async function GET(
             orderBy: { name: 'asc' } // Simple ordering, or custom numeric sort
         });
 
-        return NextResponse.json({ nfts });
+
+        // Transform image data to URL
+        const transformedNfts = nfts.map(transformNft);
+
+        return NextResponse.json({ nfts: transformedNfts });
+
 
     } catch (error: any) {
         console.error("Error fetching NFTs:", error);
@@ -105,7 +116,7 @@ export async function POST(
             }
         });
 
-        return NextResponse.json(nft);
+        return NextResponse.json(transformNft(nft));
     } catch (error: any) {
         console.error("Error creating NFT:", error);
         return NextResponse.json({ error: error.message || "Failed to create NFT" }, { status: 500 });
@@ -180,7 +191,7 @@ export async function PUT(
             data: updateData
         });
 
-        return NextResponse.json(nft);
+        return NextResponse.json(transformNft(nft));
     } catch (error: any) {
         console.error("Error updating NFT:", error);
         return NextResponse.json({ error: error.message || "Failed to update NFT" }, { status: 500 });
