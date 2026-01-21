@@ -41,7 +41,7 @@ export default function Home() {
       }
 
       console.log("💰 processing payment...");
-      setStatus("PROCESSING PAYMENT..."); // Uppercase for consistency
+      setStatus("PROCESSING PAYMENT...");
 
       const paymentResult = await mintCollection(null);
       if (!paymentResult.success) {
@@ -50,59 +50,73 @@ export default function Home() {
 
       console.log("✅ Payment successful:", paymentResult.txHash);
 
-      // Call the new NFT generation workflow
-      setStatus("QUEUING GENERATION..."); // Transition status
-      const response = await fetch('/api/generate-nft-collection', {
+      // 1. Initialize Project & Parse Prompt
+      setStatus("ANALYZING PROMPT...");
+      const initRes = await fetch('/api/nft/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          ownerAddress: address,
-          traitsPerCategory: 2,
-          nftsToGenerate: supply
-        })
+        body: JSON.stringify({ prompt, ownerAddress: address })
       });
+      if (!initRes.ok) throw new Error("Failed to initialize project");
+      const { projectId, config } = await initRes.json();
+      console.log("✅ Project initialized:", projectId);
 
-      if (!response.ok || !response.body) throw new Error("Failed to connect to generation service");
+      // 2. Generate Base Character
+      setStatus("GENERATING BASE CHARACTER...");
+      const baseRes = await fetch('/api/nft/generate-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, config })
+      });
+      if (!baseRes.ok) throw new Error("Failed to generate base character");
+      console.log("✅ Base character generated");
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      // 3. Generate Traits
+      const categories = ["background", "headwear", "eyewear", "accessory", "clothing"];
+      const traitsPerCategory = 2; // Fixed for now, can be dynamic
+      let traitsGenerated = 0;
+      const totalTraits = categories.length * traitsPerCategory;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      setStatus("GENERATING TRAITS...");
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-
-        // Keep the last partial line in the buffer
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
+      // Parallelize by category, but sequential within category to manage load? 
+      // Or just limited concurrency pool. Let's do simple loops for clarity and safety first.
+      for (const category of categories) {
+        for (let i = 1; i <= traitsPerCategory; i++) {
+          setStatus(`GENERATING ${category.toUpperCase()} ${i}/${traitsPerCategory}...`);
           try {
-            const data = JSON.parse(line);
-
-            if (data.status) {
-              setStatus(data.status);
-            }
-
-            if (data.error) {
-              throw new Error(data.error);
-            }
-
-            if (data.success && data.result) {
-              console.log("✅ NFT Collection generated:", data.result);
-              setStatus("REDIRECTING...");
-              router.push(`/editor?id=${data.result.projectId}`);
-              return;
-            }
-          } catch (parseError) {
-            console.warn("Failed to parse stream line:", line);
+            await fetch('/api/nft/generate-trait', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectId, config, category, variationNumber: i })
+            });
+            traitsGenerated++;
+          } catch (e) {
+            console.warn(`Failed to generate ${category} ${i}`, e);
+            // Continue even if one fails
           }
         }
       }
+      console.log(`✅ Generated ${traitsGenerated} traits`);
+
+      // 4. Generate NFT Variants
+      setStatus("COMPOSITING VARIANTS...");
+      for (let i = 1; i <= supply; i++) {
+        setStatus(`CREATING NFT ${i}/${supply}...`);
+        try {
+          await fetch('/api/nft/generate-variant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, variantIndex: i })
+          });
+        } catch (e) {
+          console.warn(`Failed to generate variant ${i}`, e);
+        }
+      }
+
+      console.log("✅ All NFTs generated");
+      setStatus("REDIRECTING...");
+      router.push(`/editor?id=${projectId}`);
 
     } catch (error: any) {
       console.error("Generation failed:", error);
