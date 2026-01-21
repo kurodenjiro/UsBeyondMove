@@ -3,6 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 import { prisma } from '@/lib/prisma';
 import { compositeTraits } from '@/lib/ai/composite';
 
+export const maxDuration = 600; // Value in seconds (10 minutes)
+
 const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
 if (!apiKey) {
     throw new Error("No API key found");
