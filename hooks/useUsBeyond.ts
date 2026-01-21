@@ -3,8 +3,8 @@ import { useMovement } from "./useMovement";
 import { usePrivy } from "@privy-io/react-auth";
 
 // Placeholder Module Address - SHOULD BE IN ENV
-const FACTORY_MODULE = process.env.NEXT_PUBLIC_FACTORY_MODULE || "0xYOUR_MOVE_MODULE_ADDRESS";
-const MODULE_NAME = "us_beyond_factory"; // Example
+const FACTORY_MODULE = process.env.NEXT_PUBLIC_FACTORY_MODULE || "0xb8d93aa049419e32be220fe5c456e25a4fd9287127626a9ea2b9c46cf6734222";
+const MODULE_NAME = "basic_nft";
 
 export const useUsBeyond = () => {
     const { user, authenticated, login } = usePrivy();
