@@ -598,9 +598,6 @@ export const ManageLayers = () => {
 
     const handleGenerateAndSave = async () => {
         console.log("🎨 Generate & Save clicked!");
-        console.log("  - projectId:", projectId);
-        console.log("  - selectedTraits:", selectedTraits);
-
         if (!projectId || Object.keys(selectedTraits).length === 0) {
             console.warn("⚠️ Cannot save: missing projectId or no traits selected");
             return;
@@ -610,80 +607,63 @@ export const ManageLayers = () => {
         setIsPreviewLoading(true);
 
         try {
-            console.log("📸 Step 1: Generating NFT image...");
-            // 1. Generate the NFT image
-            const baseNode = nodes.find(n => n.data.label.toLowerCase() === "body");
-            const baseImage = selectedTraits[baseNode?.data.label]?.imageUrl || baseNode?.data.traits[0]?.imageUrl;
+            console.log("💾 Step 1: Saving NFT (Server-side generation)...");
 
-            const traitsForGeneration = Object.keys(selectedTraits)
-                .filter(layer => layer.toLowerCase() !== 'body')
+            // Prepare attributes
+            const attributes = Object.keys(selectedTraits)
+                .filter(layer => layer.toLowerCase() !== 'body') // Body is base, usually not an attribute unless specific
                 .map(layer => ({
-                    category: layer,
-                    imageData: selectedTraits[layer].imageUrl
+                    trait_type: layer,
+                    value: selectedTraits[layer].name
                 }));
 
-            console.log("  - Base image:", baseImage?.substring(0, 50) + "...");
-            console.log("  - Traits to composite:", traitsForGeneration.length);
-
-            const response = await fetch('/api/preview-nft', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    baseImage,
-                    traits: traitsForGeneration
-                })
-            });
-
-            const data = await response.json();
-            console.log("  - Generation response:", data.success ? "✅ Success" : "❌ Failed");
-
-            if (!data.success) throw new Error("Failed to generate NFT");
+            // Ensure Body is included if needed by server for composition, 
+            // but server logic defaults to finding it if missing. 
+            // However, if we have a specific body selection, include it!
+            const bodyTrait = selectedTraits['Body'];
+            if (bodyTrait) {
+                attributes.push({ trait_type: 'Body', value: bodyTrait.name });
+            }
 
             let savedNFT: any;
 
             if (existingNFT) {
-                console.log("♻️ Step 2: Regenerating - Updating existing NFT...");
-                // UPDATE existing NFT
+                console.log("♻️ Updating existing NFT:", existingNFT.id);
                 const updateResponse = await fetch(`/api/projects/${projectId}/nfts`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         nftId: existingNFT.id,
-                        image: data.image
+                        attributes // Send attributes only, server generates image
                     })
                 });
 
-                if (!updateResponse.ok) throw new Error("Failed to update NFT");
+                if (!updateResponse.ok) {
+                    const err = await updateResponse.json();
+                    throw new Error(err.error || "Failed to update NFT");
+                }
                 savedNFT = await updateResponse.json();
                 console.log("✅ NFT updated successfully!", savedNFT);
 
-                // Update local state: replace the old NFT with the new one
                 setNfts(prev => prev.map(n => n.id === savedNFT.id ? savedNFT : n));
 
             } else {
-                console.log("💾 Step 2: Saving new NFT to database...");
-                // CREATE new NFT
-                const attributes = Object.keys(selectedTraits)
-                    .filter(layer => layer.toLowerCase() !== 'body')
-                    .map(layer => ({
-                        trait_type: layer,
-                        value: selectedTraits[layer].name
-                    }));
-
+                console.log("💾 Creating new NFT...");
                 const saveResponse = await fetch(`/api/projects/${projectId}/nfts`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        image: data.image,
-                        attributes
+                        attributes // Send attributes only
                     })
                 });
 
-                if (!saveResponse.ok) throw new Error("Failed to save NFT");
+                if (!saveResponse.ok) {
+                    const err = await saveResponse.json();
+                    throw new Error(err.error || "Failed to save NFT");
+                }
                 savedNFT = await saveResponse.json();
                 console.log("✅ NFT saved successfully!", savedNFT);
 
-                // Add to local state
                 setNfts(prev => [...prev, savedNFT]);
             }
 
@@ -694,6 +674,7 @@ export const ManageLayers = () => {
             console.log("🎉 Generate/Update complete!");
         } catch (error) {
             console.error("❌ Failed to process NFT:", error);
+            alert("Failed to save NFT. See console for details.");
         } finally {
             setIsSavingNFT(false);
             setIsPreviewLoading(false);
