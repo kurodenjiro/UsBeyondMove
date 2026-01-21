@@ -32,7 +32,7 @@ export const useX402 = () => {
 
             console.log("Payment Successful. Tx:", result.hash);
 
-            return { success: true, paymentHeader: result.hash };
+            return { success: true, txHash: result.hash };
 
         } catch (error: any) {
             console.error("Payment failed:", error);
