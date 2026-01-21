@@ -35,7 +35,7 @@ export async function GET(
             headers: {
                 'Content-Type': type,
                 'Content-Length': buffer.length.toString(),
-                'Cache-Control': 'public, max-age=31536000, immutable'
+                'Cache-Control': 'public, max-age=0, must-revalidate'
             }
         });
 

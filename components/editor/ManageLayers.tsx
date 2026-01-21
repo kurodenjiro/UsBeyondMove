@@ -667,8 +667,8 @@ export const ManageLayers = () => {
                 setNfts(prev => [...prev, savedNFT]);
             }
 
-            // Update preview and existing reference
-            setPreviewImage(savedNFT.image);
+            // Update preview and existing reference (add cache-buster)
+            setPreviewImage(`${savedNFT.image}?t=${Date.now()}`);
             setExistingNFT(savedNFT);
 
             console.log("🎉 Generate/Update complete!");
@@ -687,8 +687,8 @@ export const ManageLayers = () => {
         // Set manual selection flag to prevent auto-update override
         setIsManualSelection(true);
 
-        // Set preview image
-        setPreviewImage(nft.image);
+        // Set preview image (add cache-buster)
+        setPreviewImage(`${nft.image}?t=${Date.now()}`);
 
         // Auto-populate selectedTraits from NFT attributes
         const newSelectedTraits: Record<string, any> = {};
