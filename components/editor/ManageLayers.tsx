@@ -674,6 +674,9 @@ export const ManageLayers = () => {
             setPreviewImage(imageUrl);
             setExistingNFT(savedNFT);
 
+            // Set manual selection flag to prevent useEffect from clearing the preview
+            setIsManualSelection(true);
+
             console.log("🎉 Generate/Update complete!");
         } catch (error) {
             console.error("❌ Failed to process NFT:", error);
