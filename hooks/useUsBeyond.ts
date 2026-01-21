@@ -23,11 +23,15 @@ export const useUsBeyond = () => {
         console.log("Creating collection on Movement...", { name, symbol });
 
         try {
-            // Assume the Move function signature is: public entry fun create_collection(name: String, symbol: String)
+            // Contract expects: create_collection(name: String, description: String, uri: String, max_supply: u64)
+            const description = `Collection for ${name}`;
+            const uri = "https://example.com"; // Placeholder, can be updated later
+            const maxSupply = 1000; // Default max supply
+
             const result = await signAndSubmitTransaction(
                 `${FACTORY_MODULE}::${MODULE_NAME}::create_collection`,
                 [],
-                [name, symbol]
+                [name, description, uri, maxSupply]
             );
 
             console.log("Factory Transaction Sent:", result.hash);
